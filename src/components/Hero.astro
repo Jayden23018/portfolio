@@ -1,7 +1,6 @@
 ---
-import { Image } from 'astro:assets';
 import { site } from '../data/site';
-import heroPhoto from '../assets/placeholder-photo-1.png';
+import PortraitCarousel from './PortraitCarousel.astro';
 ---
 
 <section class="hero container">
@@ -27,18 +26,9 @@ import heroPhoto from '../assets/placeholder-photo-1.png';
     </p>
   </div>
 
-  <figure class="hero__figure">
-    <Image
-      src={heroPhoto}
-      alt="Placeholder hero photo — TODO replace with a real shot"
-      class="hero__photo"
-      widths={[600, 900, 1200]}
-      sizes="(max-width: 900px) 100vw, 45vw"
-      loading="eager"
-      fetchpriority="high"
-    />
-    <figcaption class="hero__caption">{site.heroCaption}</figcaption>
-  </figure>
+  <div class="hero__figure">
+    <PortraitCarousel />
+  </div>
 </section>
 
 <style>
@@ -106,26 +96,10 @@ import heroPhoto from '../assets/placeholder-photo-1.png';
     color: var(--accent);
   }
 
-  /* Photo */
+  /* Photo (portrait carousel) */
   .hero__figure {
     position: sticky;
     top: calc(4rem + var(--space-8)); /* below masthead */
-  }
-
-  .hero__photo {
-    width: 100%;
-    height: auto;
-    aspect-ratio: 4 / 5;
-    object-fit: cover;
-    border-radius: 2px;
-    display: block;
-  }
-
-  .hero__caption {
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    color: var(--ink-2);
-    margin-top: var(--space-2);
   }
 
   /* Responsive: single column below 900px */
@@ -137,10 +111,6 @@ import heroPhoto from '../assets/placeholder-photo-1.png';
     .hero__figure {
       position: static;
       order: -1; /* photo first on mobile */
-    }
-
-    .hero__photo {
-      aspect-ratio: 16 / 9;
     }
   }
 </style>
