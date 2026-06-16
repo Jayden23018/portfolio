@@ -9,6 +9,7 @@ interface Item {
   year:    string;
   meta:    string;
   cover:   ImageMetadata;
+  preview?: ImageMetadata;
 }
 
 interface Props {
@@ -20,19 +21,23 @@ const { items, basePath } = Astro.props;
 
 // Pre-compute 420px webp for the cursor preview (avoids using unprocessed paths).
 // SVG covers can't be rasterized by sharp, so pass their source through unchanged.
+// Prefer a dedicated preview image; fall back to the project cover.
 const previewSrcs = await Promise.all(
   items.map(async (item) => {
-    if (item.cover.format === 'svg') {
-      return { src: item.cover.src };
+    const src = item.preview ?? item.cover;
+    if (src.format === 'svg') {
+      return { src: src.src };
     }
-    return getImage({ src: item.cover, width: 420, format: 'webp' });
+    return getImage({ src, width: 420, format: 'webp' });
   })
 );
 ---
 
 <div class="hil-wrap">
   <ul class="hil" role="list">
-    {items.map((item, i) => (
+    {items.map((item, i) => {
+      const thumb = item.preview ?? item.cover;
+      return (
       <li class="hil__item">
         <a
           href={`${basePath}/${item.slug}`}
@@ -53,11 +58,11 @@ const previewSrcs = await Promise.all(
 
           <!-- Mobile inline thumbnail (visible on touch/hover:none devices) -->
           <div class="hil__thumb-wrap" aria-hidden="true">
-            {item.cover.format === 'svg' ? (
-              <img src={item.cover.src} alt="" class="hil__thumb" loading="lazy" />
+            {thumb.format === 'svg' ? (
+              <img src={thumb.src} alt="" class="hil__thumb" loading="lazy" />
             ) : (
               <Image
-                src={item.cover}
+                src={thumb}
                 alt=""
                 class="hil__thumb"
                 widths={[200, 400]}
@@ -68,7 +73,8 @@ const previewSrcs = await Promise.all(
           </div>
         </a>
       </li>
-    ))}
+      );
+    })}
   </ul>
 
   <!-- Cursor-following preview (desktop / pointer devices only) -->

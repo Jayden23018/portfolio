@@ -31,6 +31,8 @@ const projects = defineCollection({
         .default({}),
       cover:        image(),
       coverCaption: z.string().optional(),
+      // Optional dedicated hover-preview image (e.g. the /work list). Falls back to cover.
+      preview:      image().optional(),
       gallery:      z
         .array(
           z.object({
