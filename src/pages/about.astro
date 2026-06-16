@@ -6,7 +6,7 @@ import Reveal from '../components/Reveal.astro';
 import PullQuote from '../components/PullQuote.astro';
 import { site } from '../data/site.ts';
 import { about } from '../data/about.ts';
-import portraitPhoto from '../assets/placeholder-photo-2.png';
+import PortraitCarousel from '../components/PortraitCarousel.astro';
 
 // Resolve featured-work slugs into project entries (cover/hook stay in sync with Work)
 const allProjects = await getCollection('projects', ({ data }) => !data.draft);
@@ -45,17 +45,9 @@ const atAGlance = [
             ))}
           </dl>
         </div>
-        <figure class="about__portrait">
-          <Image
-            src={portraitPhoto}
-            alt={about.portraitAlt}
-            class="about__portrait-img"
-            widths={[400, 600, 800]}
-            sizes="(max-width: 900px) 100vw, 420px"
-            loading="eager"
-          />
-          <figcaption class="about__portrait-caption">// TODO — replace with a real portrait</figcaption>
-        </figure>
+        <div class="about__portrait">
+          <PortraitCarousel />
+        </div>
       </header>
     </Reveal>
 
