@@ -1,0 +1,171 @@
+---
+import { getCollection } from 'astro:content';
+import { Image } from 'astro:assets';
+import Base from '../layouts/Base.astro';
+import Hero from '../components/Hero.astro';
+import ProjectCard from '../components/ProjectCard.astro';
+import Reveal from '../components/Reveal.astro';
+import ArcIndex from '../components/ArcIndex.astro';
+import { site } from '../data/site.ts';
+
+/* Featured projects — up to 3, newest first */
+const allProjects = await getCollection('projects', ({ data }) => !data.draft && data.featured);
+const featured = allProjects
+  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+  .slice(0, 3);
+
+/* Photography preview — flatten first 4 images across all series */
+const allSeries = await getCollection('photos');
+const previewImages = allSeries
+  .sort((a, b) => a.data.order - b.data.order)
+  .flatMap(s => s.data.images)
+  .slice(0, 4);
+---
+
+<Base
+  title={`${site.name} — AI research, software & photography`}
+  description={site.standfirst}
+>
+  <Hero />
+
+  <ArcIndex />
+
+  <!-- Selected Work -->
+  <section class="section container" aria-labelledby="work-heading">
+    <header class="section__header">
+      <h2 class="section__title" id="work-heading">
+        Selected work <span class="section__sub">— engineering &amp; projects</span>
+      </h2>
+      <a href="/work" class="section__link">view all →</a>
+    </header>
+
+    <div class="project-list">
+      {featured.map((project, i) => (
+        <Reveal delay={i * 0.08}>
+          <ProjectCard
+            index={i}
+            slug={project.id}
+            title={project.data.title}
+            summary={project.data.summary}
+            tech={project.data.tech}
+            cover={project.data.cover}
+          />
+        </Reveal>
+      ))}
+    </div>
+  </section>
+
+  <!-- Photography Preview -->
+  <section class="section container" aria-labelledby="photo-heading">
+    <header class="section__header">
+      <h2 class="section__title" id="photo-heading">
+        Photography <span class="section__sub">— street · landscape · portrait</span>
+      </h2>
+      <a href="/photography" class="section__link">open gallery →</a>
+    </header>
+
+    <Reveal>
+    <div class="photo-strip">
+      {previewImages.map(img => (
+        <a href="/photography" class="photo-strip__item" aria-label="Open photography gallery">
+          <Image
+            src={img.src}
+            alt={img.alt}
+            class="photo-strip__img"
+            widths={[300, 500]}
+            sizes="(max-width: 640px) 50vw, 25vw"
+            loading="lazy"
+          />
+        </a>
+      ))}
+    </div>
+    </Reveal>
+  </section>
+</Base>
+
+<style>
+  /* Section layout */
+  .section {
+    margin-bottom: var(--section-gap);
+  }
+
+  .section__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-4);
+    margin-bottom: var(--space-8);
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .section__title {
+    font-family: var(--font-display);
+    font-size: clamp(1.6rem, 3vw, 2.1rem);
+    font-weight: 460;
+    line-height: 1.15;
+    color: var(--ink);
+  }
+
+  .section__sub {
+    font-weight: 400;
+    color: var(--ink-2);
+  }
+
+  .section__link {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.02em;
+    color: var(--accent);
+    text-decoration: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .section__link:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+  }
+
+  /* Project list */
+  .project-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Photo strip */
+  .photo-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-3);
+  }
+
+  .photo-strip__item {
+    display: block;
+    overflow: hidden;
+    border-radius: 2px;
+    aspect-ratio: 3 / 4;
+  }
+
+  .photo-strip__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s ease;
+  }
+
+  .photo-strip__item:hover .photo-strip__img {
+    transform: scale(1.03);
+  }
+
+  @media (max-width: 640px) {
+    .photo-strip {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .photo-strip__img { transition: none; }
+    .photo-strip__item:hover .photo-strip__img { transform: none; }
+  }
+</style>

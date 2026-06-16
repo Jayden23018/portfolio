@@ -1,0 +1,141 @@
+---
+// "At a glance" strip — 5 cells: role / my contribution / timeline / status / links.
+// `my contribution` is always rendered and visually emphasized (authorship clarity).
+interface Props {
+  category: string;
+  contribution: string;
+  role?: string;
+  timeline?: string;
+  status?: string;
+  year?: string;
+  links?: { github?: string; demo?: string; paper?: string };
+}
+
+const { category, contribution, role, timeline, status, year, links = {} } = Astro.props;
+
+const hasLinks = Boolean(links.github || links.demo || links.paper);
+---
+
+<dl class="pmeta">
+  <div class="pmeta__cell">
+    <dt class="pmeta__label">role</dt>
+    <dd class="pmeta__value">{role ?? category}</dd>
+  </div>
+
+  <div class="pmeta__cell pmeta__cell--accent">
+    <dt class="pmeta__label">my contribution</dt>
+    <dd class="pmeta__value">{contribution}</dd>
+  </div>
+
+  <div class="pmeta__cell">
+    <dt class="pmeta__label">timeline</dt>
+    <dd class="pmeta__value">{timeline ?? year}</dd>
+  </div>
+
+  {status && (
+    <div class="pmeta__cell">
+      <dt class="pmeta__label">status</dt>
+      <dd class="pmeta__value">{status}</dd>
+    </div>
+  )}
+
+  {hasLinks && (
+    <div class="pmeta__cell">
+      <dt class="pmeta__label">links</dt>
+      <dd class="pmeta__value pmeta__links">
+        {links.paper && (
+          <a href={links.paper} target="_blank" rel="noopener noreferrer">paper ↗</a>
+        )}
+        {links.github && (
+          <a href={links.github} target="_blank" rel="noopener noreferrer">github ↗</a>
+        )}
+        {links.demo && (
+          <a href={links.demo} target="_blank" rel="noopener noreferrer">demo ↗</a>
+        )}
+      </dd>
+    </div>
+  )}
+</dl>
+
+<style>
+  .pmeta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    margin: 0;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .pmeta__cell {
+    padding: var(--space-4) var(--space-5);
+    border-left: 1px solid var(--rule);
+    min-width: 0;
+  }
+
+  .pmeta__cell:first-child {
+    border-left: none;
+    padding-left: 0;
+  }
+
+  .pmeta__cell--accent {
+    background: var(--bg-2);
+  }
+
+  .pmeta__label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.03em;
+    color: var(--accent);
+    margin-bottom: var(--space-2);
+  }
+
+  .pmeta__value {
+    font-size: 0.92rem;
+    line-height: 1.45;
+    color: var(--ink);
+  }
+
+  .pmeta__links {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .pmeta__links a {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .pmeta__links a:hover {
+    text-decoration: underline;
+  }
+
+  @media (max-width: 720px) {
+    .pmeta {
+      grid-template-columns: 1fr 1fr;
+    }
+    .pmeta__cell,
+    .pmeta__cell:first-child {
+      border-left: 1px solid var(--rule);
+      padding: var(--space-3);
+    }
+    .pmeta__cell:first-child {
+      border-left: none;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .pmeta {
+      grid-template-columns: 1fr;
+    }
+    .pmeta__cell {
+      border-left: none;
+      border-top: 1px solid var(--rule);
+    }
+    .pmeta__cell:first-child {
+      border-top: none;
+    }
+  }
+</style>

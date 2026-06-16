@@ -1,0 +1,334 @@
+---
+import { getCollection, render } from 'astro:content';
+import { Image } from 'astro:assets';
+import Base from '../../layouts/Base.astro';
+import TechTags from '../../components/TechTags.astro';
+import YouTubeFacade from '../../components/YouTubeFacade.astro';
+import ProjectMeta from '../../components/ProjectMeta.astro';
+import Metrics from '../../components/Metrics.astro';
+import PullQuote from '../../components/PullQuote.astro';
+
+export async function getStaticPaths() {
+  const all = await getCollection('projects', ({ data }) => !data.draft);
+  const sorted = all.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+
+  return sorted.map((project, i) => ({
+    params: { slug: project.id },
+    props: {
+      project,
+      prev: sorted[i + 1] ?? null,
+      next: sorted[i - 1] ?? null,
+    },
+  }));
+}
+
+const { project, prev, next } = Astro.props;
+const { data } = project;
+const { Content } = await render(project);
+
+const year = data.date.getFullYear().toString();
+const kicker = [data.category, data.timeline, year].filter(Boolean).join(' · ');
+const coverIsSvg = data.cover.format === 'svg';
+---
+
+<Base title={`${data.title} — Jayden W.`} description={data.summary} ogImage={data.cover.src}>
+  <article class="project container">
+
+    <!-- Kicker / hook / standfirst -->
+    <header class="project__header">
+      {kicker && <p class="project__kicker">{kicker}</p>}
+      <h1 class="project__title">{data.hook}</h1>
+      <p class="project__standfirst">{data.summary}</p>
+
+      {data.tech.length > 0 && (
+        <div class="project__tech">
+          <TechTags tags={data.tech} />
+        </div>
+      )}
+    </header>
+
+    {data.pullQuote && (
+      <PullQuote quote={data.pullQuote} />
+    )}
+
+    <!-- At a glance (role / my contribution / timeline / status / links) -->
+    <ProjectMeta
+      category={data.category}
+      role={data.role}
+      contribution={data.contribution}
+      timeline={data.timeline}
+      status={data.status}
+      year={year}
+      links={data.links}
+    />
+
+    <!-- Hero media + caption -->
+    <figure class="project__hero">
+      {coverIsSvg ? (
+        <img
+          src={data.cover.src}
+          alt={data.coverCaption ?? data.title}
+          class="project__hero-img"
+          loading="eager"
+          decoding="async"
+        />
+      ) : (
+        <Image
+          src={data.cover}
+          alt={data.coverCaption ?? data.title}
+          class="project__hero-img"
+          widths={[800, 1200, 1600, 2000]}
+          sizes="(max-width: 900px) 100vw, 1100px"
+          loading="eager"
+        />
+      )}
+      {data.coverCaption && (
+        <figcaption class="project__hero-caption">{data.coverCaption}</figcaption>
+      )}
+    </figure>
+
+    <!-- Body: free MDX canvas, with optional legacy 3-section fallback + gallery -->
+    <div class="project__body prose">
+      {(data.problem || data.approach || data.result) && (
+        <div class="project__legacy">
+          {data.problem && (
+            <section><h2>Problem</h2><p>{data.problem}</p></section>
+          )}
+          {data.approach && (
+            <section><h2>Approach</h2><p>{data.approach}</p></section>
+          )}
+          {data.result && (
+            <section><h2>Result</h2><p>{data.result}</p></section>
+          )}
+        </div>
+      )}
+
+      <Content />
+
+      {data.gallery.length > 0 && (
+        <div class="project__gallery">
+          {data.gallery.map((img) => (
+            <figure class="project__gallery-figure">
+              <Image
+                src={img.src}
+                alt={img.caption}
+                class="project__gallery-img"
+                widths={[600, 900, 1200]}
+                sizes="(max-width: 640px) 100vw, 60vw"
+                loading="lazy"
+              />
+              <figcaption class="project__gallery-caption">{img.caption}</figcaption>
+            </figure>
+          ))}
+        </div>
+      )}
+    </div>
+
+    {data.metrics.length > 0 && (
+      <section class="project__results" aria-label="Key results">
+        <p class="project__results-label">results</p>
+        <Metrics items={data.metrics} />
+      </section>
+    )}
+
+    {data.video && (
+      <div class="project__video">
+        <YouTubeFacade url={data.video} title={data.title} />
+      </div>
+    )}
+
+    <!-- Prev / Next navigation -->
+    <nav class="project__nav" aria-label="Project navigation">
+      <div class="project__nav-prev">
+        {prev && (
+          <a href={`/work/${prev.id}`} class="project__nav-link">
+            <span class="project__nav-label">← previous</span>
+            <span class="project__nav-title">{prev.data.title}</span>
+          </a>
+        )}
+      </div>
+      <div class="project__nav-next">
+        {next && (
+          <a href={`/work/${next.id}`} class="project__nav-link project__nav-link--right">
+            <span class="project__nav-label">next →</span>
+            <span class="project__nav-title">{next.data.title}</span>
+          </a>
+        )}
+      </div>
+    </nav>
+
+  </article>
+</Base>
+
+<style>
+  .project {
+    padding-block: clamp(3rem, 6vw, 5rem) var(--section-gap);
+  }
+
+  /* Header */
+  .project__header {
+    max-width: 880px;
+    margin-bottom: var(--space-8);
+  }
+
+  .project__kicker {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.03em;
+    color: var(--accent);
+    margin-bottom: var(--space-4);
+  }
+
+  .project__title {
+    font-family: var(--font-display);
+    font-size: clamp(1.9rem, 4.5vw, 3.2rem);
+    font-weight: 460;
+    line-height: 1.08;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    margin-bottom: var(--space-5);
+  }
+
+  .project__standfirst {
+    font-size: 1.125rem;
+    line-height: 1.6;
+    color: var(--ink-2);
+    max-width: 56ch;
+  }
+
+  .project__tech {
+    margin-top: var(--space-5);
+  }
+
+  /* Hero */
+  .project__hero {
+    margin: var(--space-10) 0 var(--section-gap);
+  }
+
+  .project__hero-img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 2px;
+  }
+
+  .project__hero-caption {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--ink-2);
+    margin-top: var(--space-3);
+    max-width: 70ch;
+  }
+
+  /* Body — editorial column; prose rules live in global.css */
+  .project__body {
+    max-width: 880px;
+  }
+
+  .project__legacy section {
+    margin-bottom: var(--space-4);
+  }
+
+  .project__gallery {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    margin-top: var(--space-8);
+  }
+
+  .project__gallery-figure {
+    margin: 0;
+  }
+
+  .project__gallery-img {
+    width: 100%;
+    height: auto;
+    border-radius: 2px;
+  }
+
+  .project__gallery-caption {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--ink-2);
+    margin-top: var(--space-2);
+  }
+
+  /* Results */
+  .project__results {
+    max-width: 880px;
+    margin-top: var(--section-gap);
+  }
+
+  .project__results-label {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.03em;
+    color: var(--accent);
+    margin-bottom: var(--space-4);
+  }
+
+  .project__video {
+    max-width: 880px;
+    margin-top: var(--space-10);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  /* Prev/Next nav */
+  .project__nav {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-8);
+    padding-top: var(--space-12);
+    border-top: 1px solid var(--rule);
+    margin-top: var(--section-gap);
+  }
+
+  .project__nav-prev,
+  .project__nav-next {
+    flex: 1;
+  }
+
+  .project__nav-next {
+    text-align: right;
+  }
+
+  .project__nav-link {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .project__nav-link--right {
+    align-items: flex-end;
+  }
+
+  .project__nav-label {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+    color: var(--accent);
+  }
+
+  .project__nav-title {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 460;
+    color: var(--ink);
+    transition: color 0.15s ease;
+  }
+
+  .project__nav-link:hover .project__nav-title {
+    color: var(--accent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .project__nav-title {
+      transition: none;
+    }
+  }
+</style>

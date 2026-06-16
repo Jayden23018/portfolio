@@ -1,0 +1,522 @@
+---
+import { getImage, Image } from 'astro:assets';
+import { layoutGlobal, type ExploreSeriesInput } from '../lib/explore-layout';
+
+interface Props { series: ExploreSeriesInput[]; }
+const { series } = Astro.props;
+
+// Toroidal Poisson-disk scatter — infinite in X and Y.
+const layout = layoutGlobal(series);
+
+const flatPhotos = series.flatMap((s) => s.photos);
+
+// 300px webp plane thumb + 24px webp LQIP (blur-up), per photo.
+const thumbByIdx = new Map<number, string>();
+const lqipByIdx = new Map<number, string>();
+await Promise.all(
+  flatPhotos.map(async (p) => {
+    const [thumb, lqip] = await Promise.all([
+      getImage({ src: p.src, width: 300, format: 'webp' }),
+      getImage({ src: p.src, width: 24, format: 'webp' }),
+    ]);
+    thumbByIdx.set(p.globalIdx, thumb.src);
+    lqipByIdx.set(p.globalIdx, lqip.src);
+  }),
+);
+
+// Series data for detail navigation (series order -> globalIdx list)
+const seriesData = series
+  .slice()
+  .sort((a, b) => a.order - b.order)
+  .map((s) => ({ title: s.title, idx: s.photos.map((p) => p.globalIdx) }));
+---
+
+<div class="explore" id="view-explore" aria-label="Photo explore" aria-hidden="true" hidden
+     data-plane-w={layout.planeW} data-plane-h={layout.planeH}>
+  <div class="explore__viewport" tabindex="-1">
+    <div class="explore__stage">
+      {layout.placed.map((p) => (
+        <button
+          class="ex-card"
+          type="button"
+          data-gidx={p.globalIdx}
+          data-aspect={p.aspect}
+          style={`left:${p.x}px; top:${p.y}px; width:${p.width}px;`}
+          aria-label={`Open photo from ${p.seriesTitle}`}
+        >
+          <img class="ex-card__lqip" src={lqipByIdx.get(p.globalIdx)} alt="" aria-hidden="true" draggable="false" />
+          <img class="ex-card__img"
+               src={thumbByIdx.get(p.globalIdx)}
+               alt={p.alt}
+               width={300}
+               height={Math.round(300 * p.aspect)}
+               loading="lazy"
+               decoding="async"
+               draggable="false" />
+          <span class="ex-card__label">{p.year ? `${p.seriesTitle} · ${p.year}` : p.seriesTitle}</span>
+        </button>
+      ))}
+    </div>
+  </div>
+
+  <!-- Minimal UI: 1px progress strip + persistent back -->
+  <div class="explore__progress" aria-hidden="true"><span class="explore__progress-dot"></span></div>
+  <button class="explore__back" type="button" aria-label="Back to grid">← back</button>
+
+  <!-- Detail overlay -->
+  <dialog class="ex-detail" id="ex-detail" aria-label="Photo detail">
+    <button class="ex-detail__close" type="button" aria-label="Back to explore">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none"
+           stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 6M6 6l12 12"/></svg>
+    </button>
+    <div class="ex-detail__main">
+      {series.map((s) => s.photos.map((p) => (
+        <figure class="ex-slide" data-gidx={p.globalIdx} hidden>
+          <Image src={p.src} alt={p.alt} class="ex-slide__img"
+                 widths={[900, 1400, 2000]} sizes="(max-width:640px) 100vw, 80vw" loading="lazy" />
+          {p.caption && <figcaption class="ex-slide__cap">{p.caption}</figcaption>}
+        </figure>
+      )))}
+    </div>
+    <div class="ex-detail__rail" role="listbox" aria-label="Photos in this series">
+      {series.map((s) => (
+        <div class="ex-rail__group" data-series={s.title} hidden>
+          {s.photos.map((p, i) => (
+            <button class="ex-thumb" type="button" role="option"
+                    data-gidx={p.globalIdx} data-sidx={i} aria-label={p.alt}>
+              <img src={thumbByIdx.get(p.globalIdx)} alt="" loading="lazy" />
+            </button>
+          ))}
+        </div>
+      ))}
+    </div>
+  </dialog>
+
+  <!-- JSON data island for client scripts -->
+  <script type="application/json" id="ex-series-data" set:html={JSON.stringify(seriesData)}></script>
+</div>
+
+<script>
+  import { initPanPlane } from '../lib/pan-plane';
+  import { gsap } from 'gsap';
+
+  const root = document.getElementById('view-explore');
+  const viewport = root?.querySelector<HTMLElement>('.explore__viewport');
+  const stage = root?.querySelector<HTMLElement>('.explore__stage');
+  const progressDot = root?.querySelector<HTMLElement>('.explore__progress-dot');
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const PW = Number(root?.dataset.planeW) || 1;
+  const PH = Number(root?.dataset.planeH) || 1;
+
+  let pan: ReturnType<typeof initPanPlane> | null = null;
+  let io: IntersectionObserver | null = null;
+
+  // ── Progress strip: X position within one period ────────────────────────
+  function updateProgress(tx: number) {
+    if (!progressDot) return;
+    const frac = (((tx % PW) + PW) % PW) / PW;
+    progressDot.style.left = `${frac * 100}%`;
+  }
+
+  // ── LQIP blur-up + IntersectionObserver eager upgrade ───────────────────
+  function setupImageLoading() {
+    const imgs = stage?.querySelectorAll<HTMLImageElement>('.ex-card__img') ?? [];
+    imgs.forEach((img) => {
+      const ready = () => {
+        img.dataset.loaded = 'true';
+        img.closest('.ex-card')?.classList.add('is-ready');
+      };
+      if (img.complete && img.naturalWidth > 0) ready();
+      else img.addEventListener('load', ready, { once: true });
+    });
+
+    io?.disconnect();
+    io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        const img = (e.target as HTMLElement).querySelector<HTMLImageElement>('.ex-card__img');
+        if (img && img.loading === 'lazy') {
+          img.loading = 'eager';
+          img.setAttribute('fetchpriority', 'high');
+        }
+        io?.unobserve(e.target);
+      }
+    }, { root: viewport ?? null, rootMargin: '80% 80% 80% 80%' });
+    stage?.querySelectorAll('.ex-card').forEach((c) => io?.observe(c));
+  }
+
+  // ── Entry morph: cards fan out from viewport centre ─────────────────────
+  function runMorph() {
+    if (!pan || !stage) return;
+    if (reduced) { pan.setEnabled(true); return; }
+    pan.setEnabled(false);
+    const cx = (viewport?.clientWidth ?? window.innerWidth) / 2;
+    const cy = (viewport?.clientHeight ?? window.innerHeight) / 2;
+    const cards = stage.querySelectorAll<HTMLElement>('.ex-card');
+    gsap.fromTo(
+      cards,
+      {
+        xPercent: -50, yPercent: -50,
+        x: (_i: number, el: HTMLElement) => cx - (parseFloat(el.style.left) || 0),
+        y: (_i: number, el: HTMLElement) => cy - (parseFloat(el.style.top) || 0),
+        opacity: 0,
+        scale: 0.82,
+      },
+      {
+        xPercent: -50, yPercent: -50,
+        x: 0, y: 0,
+        opacity: 1,
+        scale: 1,
+        duration: 0.8,
+        ease: 'power3.out',
+        stagger: 0.012,
+        onComplete: () => pan?.setEnabled(true),
+      },
+    );
+  }
+
+  function activate() {
+    if (!root || !viewport || !stage) return;
+    root.removeAttribute('hidden');
+    root.setAttribute('aria-hidden', 'false');
+    if (!pan) {
+      pan = initPanPlane(viewport, stage, {
+        planeW: PW, planeH: PH,
+        onFrame: (tx) => updateProgress(tx),
+      });
+    } else {
+      pan.recenter();
+    }
+    setupImageLoading();
+    viewport.focus({ preventScroll: true });
+    runMorph();
+  }
+  window.addEventListener('explore:activate', activate);
+
+  // ── Detail overlay ─────────────────────────────────────────────────────
+  interface SeriesInfo { title: string; sidx: number; list: number[]; }
+
+  const seriesData = JSON.parse(document.getElementById('ex-series-data')?.textContent || '[]');
+  const dialog = document.getElementById('ex-detail') as HTMLDialogElement | null;
+  const slides = [...dialog?.querySelectorAll('.ex-slide') ?? []];
+  const closeBtn = dialog?.querySelector('.ex-detail__close');
+  const railGroups = [...dialog?.querySelectorAll('.ex-rail__group') ?? []];
+
+  const seriesOf = new Map<number, SeriesInfo>();
+  seriesData.forEach((s: { title: string; idx: number[] }) =>
+    s.idx.forEach((gidx: number, i: number) =>
+      seriesOf.set(gidx, { title: s.title, sidx: i, list: s.idx })));
+
+  let lastTrigger: HTMLElement | null = null;
+
+  function show(gidx: number) {
+    const info = seriesOf.get(gidx);
+    if (!info) return;
+    slides.forEach((el) => { (el as HTMLElement).hidden = Number((el as HTMLElement).dataset.gidx) !== gidx; });
+    railGroups.forEach((g) => { (g as HTMLElement).hidden = (g as HTMLElement).dataset.series !== info.title; });
+    dialog?.querySelectorAll('.ex-thumb').forEach((t) => {
+      const on = Number((t as HTMLElement).dataset.gidx) === gidx;
+      t.classList.toggle('is-current', on);
+      t.setAttribute('aria-current', on ? 'true' : 'false');
+      if (on) t.scrollIntoView({ block: 'nearest' });
+    });
+    if (dialog) dialog.dataset.gidx = String(gidx);
+  }
+
+  function step(delta: number) {
+    if (!dialog) return;
+    const cur = Number(dialog.dataset.gidx);
+    const info = seriesOf.get(cur);
+    if (!info) return;
+    const ni = Math.max(0, Math.min(info.sidx + delta, info.list.length - 1));
+    show(info.list[ni]);
+  }
+
+  function openDetail(gidx: number, trigger: HTMLElement | null) {
+    lastTrigger = trigger || null;
+    show(gidx);
+    dialog?.showModal();
+  }
+
+  // Open from a plane card
+  stage?.addEventListener('click', (e) => {
+    const card = (e.target as Element).closest('.ex-card');
+    if (!card) return;
+    openDetail(Number((card as HTMLElement).dataset.gidx), card as HTMLElement);
+  });
+
+  // Jump from rail
+  dialog?.addEventListener('click', (e) => {
+    const thumb = (e.target as Element).closest('.ex-thumb');
+    if (thumb) { show(Number((thumb as HTMLElement).dataset.gidx)); return; }
+    if (e.target === dialog) dialog.close(); // click backdrop
+  });
+
+  closeBtn?.addEventListener('click', () => dialog?.close());
+
+  dialog?.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { e.preventDefault(); step(1); }
+  });
+
+  dialog?.addEventListener('close', () => { lastTrigger?.focus?.(); });
+
+  // ── Keyboard focus-into-view (infinite: centerOn wraps) ──────────────────
+  stage?.addEventListener('focusin', (e) => {
+    const card = (e.target as Element).closest('.ex-card');
+    if (!card || !pan) return;
+    const x = parseFloat((card as HTMLElement).style.left);
+    const y = parseFloat((card as HTMLElement).style.top);
+    pan.centerOn(x, y);
+  });
+
+  // ── Deactivate: restore hidden + close any open dialog ──────────────────
+  function deactivate() {
+    if (!root) return;
+    if (dialog?.open) dialog.close();
+    root.setAttribute('hidden', '');
+    root.setAttribute('aria-hidden', 'true');
+  }
+  window.addEventListener('explore:deactivate', deactivate);
+
+  // ── Exit to grid: reuse the sidebar Grid toggle (single source of truth) ──
+  function exitToGrid() {
+    document.querySelector<HTMLButtonElement>('[data-view="grid"]')?.click();
+  }
+  root?.querySelector('.explore__back')?.addEventListener('click', exitToGrid);
+  // Esc on the plane (detail already closed via <dialog> default) returns to grid
+  viewport?.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Escape') { e.preventDefault(); exitToGrid(); }
+  });
+</script>
+
+<style>
+  .explore {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 80;
+    overflow: hidden;
+  }
+  .explore__viewport {
+    position: absolute;
+    inset: 0;
+    cursor: grab;
+    touch-action: none;
+    outline: none;
+  }
+  .explore__viewport:active { cursor: grabbing; }
+  .explore__stage {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
+  /* Each card is repositioned every frame by pan-plane (transform incl.
+     translate(-50%,-50%)); CSS must not set its own transform. */
+  .ex-card {
+    position: absolute;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: zoom-in;
+    content-visibility: auto;
+    contain-intrinsic-size: 180px 130px;
+  }
+  .ex-card__lqip {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: blur(14px) saturate(1.1);
+    transform: scale(1.08);
+    transition: opacity 0.45s ease;
+  }
+  .ex-card__img {
+    position: relative;
+    width: 100%;
+    height: auto;
+    display: block;
+    opacity: 0;
+    box-shadow: 0 6px 24px rgba(33, 30, 24, 0.18);
+    transition: opacity 0.45s ease, scale 0.2s ease, box-shadow 0.2s ease;
+  }
+  .ex-card.is-ready .ex-card__img { opacity: 1; }
+  .ex-card.is-ready .ex-card__lqip { opacity: 0; }
+  .ex-card:hover .ex-card__img,
+  .ex-card:focus-visible .ex-card__img { scale: 1.04; box-shadow: 0 12px 40px rgba(33, 30, 24, 0.28); }
+  .ex-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 6px; }
+  .ex-card__label {
+    position: absolute;
+    left: 50%;
+    bottom: -1.4em;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+  }
+  .ex-card:hover .ex-card__label,
+  .ex-card:focus-visible .ex-card__label { opacity: 1; }
+
+  /* ── Minimal UI ── */
+  .explore__progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--rule);
+    opacity: 0.5;
+    z-index: 10;
+    pointer-events: none;
+  }
+  .explore__progress-dot {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 48px;
+    height: 1px;
+    background: var(--accent);
+    transform: translateX(-50%);
+  }
+  .explore__back {
+    position: fixed;
+    top: var(--space-5);
+    left: var(--space-5);
+    z-index: 10;
+    background: none;
+    border: none;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    color: var(--ink-2);
+    cursor: pointer;
+    padding: var(--space-1) 0;
+    transition: color 0.15s;
+  }
+  .explore__back:hover { color: var(--ink); }
+  .explore__back:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ex-card__img { opacity: 1; transition: none; }
+    .ex-card__lqip { display: none; }
+  }
+
+  /* ── Detail overlay ── */
+  .ex-detail {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: none;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    overflow: hidden;
+  }
+  .ex-detail::backdrop { background: rgba(33, 30, 24, 0.92); }
+  .ex-detail[open] {
+    display: grid;
+    grid-template-columns: 1fr 120px;
+  }
+
+  .ex-detail__main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    padding: var(--space-6);
+    min-width: 0;
+  }
+
+  .ex-slide { margin: 0; display: flex; flex-direction: column; align-items: center; }
+  .ex-slide__img {
+    max-height: 80vh;
+    max-width: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+  }
+  .ex-slide__cap {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: rgba(244, 240, 230, 0.6);
+    margin-top: var(--space-3);
+    text-align: center;
+  }
+
+  .ex-detail__close {
+    position: fixed;
+    top: var(--space-6);
+    right: var(--space-6);
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid rgba(244, 240, 230, 0.25);
+    color: var(--bg);
+    cursor: pointer;
+    border-radius: 2px;
+    z-index: 10;
+  }
+  .ex-detail__close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .ex-detail__rail {
+    overflow-y: auto;
+    padding: var(--space-4) var(--space-2);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    background: rgba(33, 30, 24, 0.4);
+  }
+  .ex-rail__group { display: flex; flex-direction: column; gap: var(--space-2); }
+
+  .ex-thumb {
+    padding: 0;
+    border: 1px solid transparent;
+    background: none;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+  }
+  .ex-thumb img { width: 100%; height: auto; display: block; }
+  .ex-thumb:hover,
+  .ex-thumb:focus-visible { opacity: 1; }
+  .ex-thumb.is-current {
+    opacity: 1;
+    border-color: var(--accent);
+  }
+  .ex-thumb:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  @media (max-width: 768px) {
+    .ex-detail[open] {
+      grid-template-columns: 1fr;
+      grid-template-rows: 1fr 96px;
+    }
+    .ex-detail__rail {
+      flex-direction: row;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+    .ex-rail__group { flex-direction: row; }
+    .ex-thumb { width: 84px; flex: 0 0 auto; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ex-thumb { transition: none; }
+  }
+</style>

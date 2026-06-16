@@ -1,0 +1,96 @@
+---
+title: "BlindRun"
+hook: "A platform that matches visually impaired runners with volunteer guides — in real time."
+category: "Backend Engineering · Social Impact"
+date: 2025-06-01
+role: "Sole backend engineer (student team, community partners)"
+timeline: "2024 – Present"
+status: "Pre-launch testing · Android/iOS planned"
+contribution: "I designed and built the entire backend — matching engine, real-time location, identity verification, and the concurrency safeguards. The mobile app is my teammates' work."
+summary: "The coordination layer that visually impaired runners and volunteer guides needed simply didn't exist — so I built the backend for it."
+pullQuote: "They had the runners and the guides. The coordination layer that connected them simply didn't exist."
+metrics:
+  - value: "30s"
+    label: "emergency-response SLA"
+  - value: "143"
+    label: "automated tests (incl. concurrency)"
+  - value: "3,000+"
+    label: "concurrent users designed (2-core)"
+tech: ["Python", "FastAPI", "Redis", "PostgreSQL", "WebSockets"]
+links:
+  github: "https://github.com/Jayden23018/blind-run-backend"
+cover: ../../assets/projects/blindrun/cover.svg
+coverCaption: "Matching happens serially — exactly one guide is ever committed per request, on purpose."
+featured: true
+draft: false
+---
+
+import Figure from '../../components/Figure.astro';
+import Callout from '../../components/Callout.astro';
+import escalationImg from '../../assets/projects/blindrun/escalation.svg';
+import architectureImg from '../../assets/projects/blindrun/architecture.svg';
+
+## Why this project
+
+The WHO puts the number of people with significant vision impairment at around 2.2 billion. In China, where I live, accessible running programs are rare — and the ones that exist still coordinate over phone calls and WeChat groups. A blind runner who wants to run today often can't, not because there's no willing guide, but because there's no way to find one in time.
+
+We had community partners with runners and with guides. What was missing was the layer that connected them in real time. I built that layer.
+
+## The matching problem
+
+The obvious design — broadcast a request to every nearby guide, first to accept wins — is wrong. It creates races (two guides both commit), pressures guides into snap decisions, and gives the runner no say in who shows up. I went with **serial dispatch**: score every eligible guide, then offer the run to them one at a time, best match first. The cover diagram shows the shape of it.
+
+The score blends five dimensions:
+
+| Dimension | What it weighs |
+|---|---|
+| Proximity | how close, right now |
+| Availability | declared free for this window |
+| History | paired successfully with this runner before |
+| Rating | past feedback from other runners |
+| Certification | verified for the runner's support needs |
+
+## Three engineering problems that surprised me
+
+These are the bugs that don't show up until real concurrency hits.
+
+### 1. The rate limiter that wasn't atomic
+
+My first rate limiter did *record, then expire*: read the count, increment, set a TTL. Under load, two requests could both read "4" before either wrote "5", and both would pass a limit of 5. The fix was a single **atomic** Redis operation — read, check, and increment in one step, so no two requests ever see the same count.
+
+### 2. Two guides, one run (the optimistic-lock race)
+
+Without protection, two guides could accept the same run a millisecond apart, and both would see "accepted" — leaving a runner expecting two people and a guide who showed up to nothing. I added **optimistic locking with a version check**: each accept carries the version it read, and the write only commits if the version hasn't changed. Second place gets a clean "already taken", not a silent success.
+
+### 3. The thread pool that could drown
+
+Emergency requests can't queue behind a flood of normal ones — a runner who has fallen has to reach a human within the 30-second SLA. An unbounded pool would let normal traffic starve emergencies; a bounded pool with naive rejection would drop the emergencies themselves. The fix is a **bounded pool with caller-runs backpressure**: when the pool is full, the calling thread runs the task itself, slowing the producer down gracefully instead of crashing or dropping.
+
+<Figure
+  src={escalationImg}
+  alt="Emergency escalation flow: normal match, timeout, escalate to emergency pool, 30-second SLA"
+  caption="Fig 3 — emergencies take a separate path with a hard 30-second deadline."
+/>
+
+## Building for real users
+
+<Figure
+  src={architectureImg}
+  alt="Layered backend architecture: mobile clients, API gateway, matching service, Redis, Postgres, bounded thread pool"
+  caption="Fig 2 — system architecture. The backend scope is mine; the mobile app is my teammates'."
+/>
+
+Real-time location runs over WebSockets; identity verification is a separate pipeline; Redis carries the locks and rate limits that keep the concurrency honest.
+
+## By the numbers
+
+| | |
+|---|---|
+| Emergency-response SLA | 30 s |
+| Automated tests | 143 (including concurrency cases) |
+| Designed concurrency | 3,000+ users on a 2-core box |
+| API endpoints | 18 |
+
+## Status
+
+Pre-launch testing with community partners now; Android and iOS apps in progress. This is the project I'm proudest of — not because it's the most technically dense, but because the coordination layer these runners needed genuinely didn't exist.

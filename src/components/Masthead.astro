@@ -1,0 +1,111 @@
+---
+import { site } from '../data/site';
+
+const navLinks = [
+  { href: '/work',        label: 'work' },
+  { href: '/photography', label: 'photography' },
+  { href: '/about',       label: 'about' },
+  { href: '/#contact',    label: 'contact' },
+];
+
+const currentPath = Astro.url.pathname;
+
+function isActive(href: string): boolean {
+  if (href.startsWith('/#')) return false;
+  if (href === '/') return currentPath === '/';
+  return currentPath.startsWith(href);
+}
+---
+
+<header class="masthead">
+  <div class="container masthead__inner">
+    <a href="/" class="masthead__logotype" aria-label={`${site.name} — home`}>
+      {site.name}
+    </a>
+
+    <nav aria-label="Primary navigation">
+      <ul class="masthead__nav" role="list">
+        {navLinks.map(({ href, label }) => (
+          <li>
+            <a
+              href={href}
+              class:list={['masthead__nav-link', { 'is-active': isActive(href) }]}
+              aria-current={isActive(href) ? 'page' : undefined}
+            >
+              {label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .masthead {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background-color: var(--bg);
+    border-bottom: 1px solid var(--ink);
+  }
+
+  /* Explore is a full-bleed immersive overlay; hide the masthead while active
+     so it neither occludes the plane nor traps the top 56px. */
+  :global(html.is-explore) .masthead {
+    display: none;
+  }
+
+  .masthead__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-8);
+    padding-block: var(--space-4);
+  }
+
+  .masthead__logotype {
+    font-family: var(--font-display);
+    font-size: 1.125rem; /* ~18px */
+    font-weight: 460;
+    color: var(--ink);
+    text-decoration: none;
+    letter-spacing: -0.01em;
+  }
+
+  .masthead__nav {
+    list-style: none;
+    display: flex;
+    gap: var(--space-6);
+    padding: 0;
+  }
+
+  .masthead__nav-link {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    color: var(--ink-2);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+
+  .masthead__nav-link:hover,
+  .masthead__nav-link:focus-visible {
+    color: var(--ink);
+  }
+
+  .masthead__nav-link.is-active {
+    color: var(--accent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .masthead__nav-link { transition: none; }
+  }
+
+  @media (max-width: 640px) {
+    .masthead__nav ul {
+      gap: var(--space-4);
+    }
+  }
+</style>

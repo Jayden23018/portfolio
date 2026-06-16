@@ -1,0 +1,449 @@
+---
+import { getCollection } from 'astro:content';
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+import Base from '../../layouts/Base.astro';
+import Lightbox from '../../components/Lightbox.astro';
+import PhotoExplore from '../../components/PhotoExplore.astro';
+import type { ExploreSeriesInput } from '../../lib/explore-layout';
+
+const allSeries = (await getCollection('photos')).sort((a, b) => a.data.order - b.data.order);
+
+interface FlatPhoto {
+  src: ImageMetadata;
+  alt: string;
+  caption?: string;
+  span: 'full' | 'half';
+  seriesTitle: string;
+  category: string;
+  year: string;
+  idx: number;
+}
+
+const flat: FlatPhoto[] = [];
+const exploreSeries: ExploreSeriesInput[] = [];
+let counter = 0;
+for (const s of allSeries) {
+  const year = s.data.date ? new Date(s.data.date).getFullYear().toString() : '2024';
+  const category = s.data.category ?? 'nature';
+  const seriesPhotos: ExploreSeriesInput['photos'] = [];
+  for (const img of s.data.images) {
+    const idx = counter++;
+    flat.push({ ...img, seriesTitle: s.data.title, category, year, idx });
+    seriesPhotos.push({
+      globalIdx: idx,
+      src: img.src,
+      alt: img.alt,
+      caption: img.caption,
+      aspect: img.src.height / img.src.width,
+      year,
+    });
+  }
+  exploreSeries.push({ title: s.data.title, order: s.data.order, photos: seriesPhotos });
+}
+
+const years = [...new Set(flat.map(p => p.year))].sort().reverse();
+const lbImages = flat.map(p => ({ src: p.src, alt: p.alt, caption: p.caption, span: p.span }));
+
+// Split into two masonry columns (even / odd index)
+const col0 = flat.filter((_, i) => i % 2 === 0);
+const col1 = flat.filter((_, i) => i % 2 === 1);
+---
+
+<Base
+  title="Photography — Jayden W."
+  description="Nature and city photography by Jayden W."
+>
+  <div class="photo-page" id="photo-page">
+
+    <!-- ── Sidebar ── -->
+    <aside class="sidebar" aria-label="Photo filters">
+
+      <!-- View toggle -->
+      <div class="sidebar__view">
+        <button class="view-btn is-active" data-view="grid" aria-pressed="true">Grid</button>
+        <span class="sidebar__sep">·</span>
+        <button class="view-btn" data-view="explore" aria-pressed="false">Explore</button>
+      </div>
+
+      <!-- Year filter -->
+      <nav class="sidebar__group" aria-label="Filter by year">
+        <span class="sidebar__label">Year</span>
+        <button class="filter-btn year-btn is-active" data-year="all" aria-pressed="true">All</button>
+        {years.map(y => (
+          <button class="filter-btn year-btn" data-year={y} aria-pressed="false">{y}</button>
+        ))}
+      </nav>
+
+      <!-- Category filter -->
+      <nav class="sidebar__group" aria-label="Filter by category">
+        <span class="sidebar__label">Category</span>
+        <button class="filter-btn cat-btn is-active" data-cat="all" aria-pressed="true">All</button>
+        <button class="filter-btn cat-btn" data-cat="nature" aria-pressed="false">Nature</button>
+        <button class="filter-btn cat-btn" data-cat="city" aria-pressed="false">City</button>
+      </nav>
+
+    </aside>
+
+    <!-- ── Main content ── -->
+    <div class="photo-main">
+
+      <!-- Grid (masonry) view -->
+      <div class="masonry" id="view-grid" role="region" aria-label="Photo grid">
+        <div class="masonry__col">
+          {col0.map(p => (
+            <figure class="m-item" data-year={p.year} data-cat={p.category}>
+              <button
+                class="m-item__btn"
+                type="button"
+                data-lb-idx={p.idx}
+                aria-label={`Open: ${p.alt}`}
+              >
+                <Image
+                  src={p.src}
+                  alt={p.alt}
+                  widths={[480, 800]}
+                  sizes="(max-width:768px) calc(50vw - 2rem), 35vw"
+                  loading="lazy"
+                  class="m-item__img"
+                />
+              </button>
+              <figcaption class="m-item__cap">
+                {p.seriesTitle}<span class="m-item__sep"> · </span>{p.year}
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+        <div class="masonry__col" style="margin-top: 2.5rem">
+          {col1.map(p => (
+            <figure class="m-item" data-year={p.year} data-cat={p.category}>
+              <button
+                class="m-item__btn"
+                type="button"
+                data-lb-idx={p.idx}
+                aria-label={`Open: ${p.alt}`}
+              >
+                <Image
+                  src={p.src}
+                  alt={p.alt}
+                  widths={[480, 800]}
+                  sizes="(max-width:768px) calc(50vw - 2rem), 35vw"
+                  loading="lazy"
+                  class="m-item__img"
+                />
+              </button>
+              <figcaption class="m-item__cap">
+                {p.seriesTitle}<span class="m-item__sep"> · </span>{p.year}
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      </div>
+
+      <PhotoExplore series={exploreSeries} />
+
+    </div>
+  </div>
+
+  <!-- Motion / Film — short edit reels, placed after the stills.
+       TODO: paste two YouTube URLs (each mirrored on Bilibili), then swap
+       each placeholder for <YouTubeFacade url={...} title={...} />. -->
+  <section class="motion container" aria-labelledby="motion-heading">
+    <header class="motion__header">
+      <h2 class="motion__title" id="motion-heading">
+        Motion <span class="motion__sub">— film &amp; edits</span>
+      </h2>
+    </header>
+    <div class="motion__grid">
+      <div class="motion__placeholder" aria-hidden="true"><span>film 1</span></div>
+      <div class="motion__placeholder" aria-hidden="true"><span>film 2</span></div>
+    </div>
+  </section>
+
+  <Lightbox images={lbImages} id="all" />
+</Base>
+
+<script>
+  let activeYear   = 'all';
+  let activeCat    = 'all';
+  let currentView  = 'grid';
+
+  const gridEl   = document.getElementById('view-grid') as HTMLElement;
+  const lbDialog = document.getElementById('lb-all')    as HTMLElement;
+
+  // ── Filter ──────────────────────────────────────────────────────
+  function applyFilters() {
+    gridEl.querySelectorAll<HTMLElement>('.m-item').forEach(el => {
+      const show =
+        (activeYear === 'all' || el.dataset.year === activeYear) &&
+        (activeCat  === 'all' || el.dataset.cat  === activeCat);
+      el.style.display = show ? '' : 'none';
+    });
+  }
+
+  function setFilterBtns(selector: string, active: HTMLButtonElement) {
+    document.querySelectorAll<HTMLButtonElement>(selector).forEach(b => {
+      b.classList.toggle('is-active', b === active);
+      b.setAttribute('aria-pressed', b === active ? 'true' : 'false');
+    });
+  }
+
+  document.querySelectorAll<HTMLButtonElement>('.year-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeYear = btn.dataset.year!;
+      setFilterBtns('.year-btn', btn);
+      applyFilters();
+    });
+  });
+
+  document.querySelectorAll<HTMLButtonElement>('.cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeCat = btn.dataset.cat!;
+      setFilterBtns('.cat-btn', btn);
+      applyFilters();
+    });
+  });
+
+  // ── View toggle ─────────────────────────────────────────────────
+  document.querySelectorAll<HTMLButtonElement>('.view-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const view = btn.dataset.view!;
+      if (view === currentView) return;
+      currentView = view;
+      setFilterBtns('.view-btn', btn);
+
+      if (view === 'explore') {
+        gridEl.setAttribute('hidden', '');
+        document.documentElement.classList.add('is-explore');
+        window.dispatchEvent(new CustomEvent('explore:activate'));
+      } else {
+        document.documentElement.classList.remove('is-explore');
+        gridEl.removeAttribute('hidden');
+        window.dispatchEvent(new CustomEvent('explore:deactivate'));
+      }
+      applyFilters();
+    });
+  });
+
+  // ── Lightbox connection ─────────────────────────────────────────
+  document.addEventListener('click', e => {
+    const btn = (e.target as Element).closest<HTMLElement>('[data-lb-idx]');
+    if (!btn || !lbDialog) return;
+    lbDialog.dispatchEvent(
+      new CustomEvent('lb:open', { detail: { idx: Number(btn.dataset.lbIdx) } })
+    );
+  });
+</script>
+
+<style>
+  /* ── Page layout ── */
+  .photo-page {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: var(--space-12);
+    padding: clamp(3rem, 6vw, 5rem) var(--px) var(--section-gap);
+    min-height: calc(100vh - 56px);
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    position: sticky;
+    top: calc(56px + var(--space-8));
+    align-self: start;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .sidebar__view {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-bottom: var(--space-6);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .sidebar__sep {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--rule);
+  }
+
+  .view-btn {
+    background: none;
+    border: none;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.15s;
+  }
+  .view-btn.is-active { color: var(--ink); }
+  .view-btn:hover { color: var(--ink); }
+
+  .sidebar__group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .sidebar__label {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    margin-bottom: var(--space-1);
+    opacity: 0.6;
+  }
+
+  .filter-btn {
+    background: none;
+    border: none;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.03em;
+    color: var(--ink-2);
+    cursor: pointer;
+    padding: 0 0 0 var(--space-3);
+    text-align: left;
+    position: relative;
+    transition: color 0.15s;
+  }
+  .filter-btn::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .filter-btn.is-active { color: var(--ink); }
+  .filter-btn.is-active::before { opacity: 1; }
+  .filter-btn:hover { color: var(--ink); }
+
+  /* ── Masonry ── */
+  .masonry {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4);
+    align-items: start;
+  }
+
+  .masonry__col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .m-item { margin: 0; }
+
+  .m-item__btn {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: zoom-in;
+  }
+
+  .m-item__img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .m-item__cap {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+    color: var(--ink-2);
+    margin-top: var(--space-2);
+  }
+
+  .m-item__sep { color: var(--rule); }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .view-btn, .filter-btn { transition: none; }
+  }
+
+  /* Mobile */
+  @media (max-width: 768px) {
+    .photo-page {
+      grid-template-columns: 1fr;
+      gap: var(--space-6);
+    }
+    .sidebar {
+      position: static;
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: var(--space-6);
+      padding-bottom: var(--space-4);
+      border-bottom: 1px solid var(--rule);
+    }
+    .sidebar__view {
+      border-bottom: none;
+      padding-bottom: 0;
+      width: 100%;
+    }
+    .masonry { gap: var(--space-2); }
+  }
+
+  /* ── Motion / Film ── */
+  .motion {
+    padding-block: var(--space-16) var(--section-gap);
+  }
+
+  .motion__header {
+    margin-bottom: var(--space-8);
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .motion__title {
+    font-family: var(--font-display);
+    font-size: clamp(1.6rem, 3vw, 2.1rem);
+    font-weight: 460;
+    color: var(--ink);
+  }
+
+  .motion__sub {
+    font-weight: 400;
+    color: var(--ink-2);
+  }
+
+  .motion__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4);
+  }
+
+  .motion__placeholder {
+    aspect-ratio: 16 / 9;
+    border: 1px dashed var(--accent);
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--accent);
+    opacity: 0.7;
+  }
+
+  @media (max-width: 640px) {
+    .motion__grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

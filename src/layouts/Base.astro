@@ -1,0 +1,76 @@
+---
+import '../styles/global.css';
+import Masthead from '../components/Masthead.astro';
+import Footer from '../components/Footer.astro';
+
+interface Props {
+  title?: string;
+  description?: string;
+  ogImage?: string;
+}
+
+const {
+  title = 'Jayden W. — Engineering & Photography',
+  description = 'Personal portfolio of Jayden W. — engineering projects and photography.',
+  ogImage = '/og-default.png',
+} = Astro.props;
+
+const canonicalURL = Astro.url;
+// Social crawlers (Twitter / Facebook / WeChat) need an absolute og:image URL.
+const ogImageURL = new URL(ogImage, Astro.site).toString();
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="canonical" href={canonicalURL} />
+
+    <!-- SEO -->
+    <title>{title}</title>
+    <meta name="description" content={description} />
+
+    <!-- Open Graph -->
+    <meta property="og:type"        content="website" />
+    <meta property="og:url"         content={canonicalURL} />
+    <meta property="og:title"       content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image"       content={ogImageURL} />
+    <meta name="twitter:card"       content="summary_large_image" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
+
+    <!-- Lenis smooth scroll — mount point for inline script below -->
+    <slot name="head" />
+  </head>
+
+  <body>
+    <Masthead />
+
+    <main>
+      <slot />
+    </main>
+
+    <Footer />
+
+    <!-- Smooth scroll + ScrollTrigger integration -->
+    <script>
+      import Lenis from 'lenis';
+      import { gsap } from 'gsap';
+      import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+      gsap.registerPlugin(ScrollTrigger);
+
+      const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!prefersReduced) {
+        const lenis = new Lenis({ autoRaf: false });
+        lenis.on('scroll', ScrollTrigger.update);
+        gsap.ticker.add((time) => { lenis.raf(time * 1000); });
+        gsap.ticker.lagSmoothing(0);
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,101 @@
+---
+title: "The Knowledge Bottleneck in LLM Task Planning"
+hook: "Most planning failures aren't a reasoning problem — they're a missing-context problem."
+category: "AI Research"
+date: 2026-02-01
+role: "Independent lead (faculty methodology guidance)"
+timeline: "6+ months"
+status: "Preparing to submit to the AAAI Student Abstract Track · July 2026"
+contribution: "Designed SAER and its scoring logic, built the evaluation infrastructure, and ran all 1,260 evaluations — independently."
+summary: "A retrieval method (SAER) that fixes the real reason large language models collapse on multi-step tasks — and the eval harness that proves it."
+pullQuote: "The bottleneck wasn't intelligence. It was the absence of structured, task-specific context at planning time."
+metrics:
+  - value: "80%"
+    label: "SAER planning success (up from 26%)"
+  - value: "0→92%"
+    label: "on the hardest multi-hop tasks"
+  - value: "1,260"
+    label: "evals across 7 models × 3 seeds"
+tech: ["Python", "LangChain", "Retrieval / RAG", "Statistics (McNemar, Bonferroni)"]
+links:
+  # TODO: replace with the real "implicit enhancer" repo slug once confirmed
+  github: "https://github.com/Jayden23018/TODO-implicit-enhancer"
+cover: ../../assets/projects/llm-planning/cover.svg
+coverCaption: "A crafting dependency chain — the kind of multi-step prerequisite reasoning where LLMs silently fail."
+featured: true
+draft: false
+---
+
+import Figure from '../../components/Figure.astro';
+import Callout from '../../components/Callout.astro';
+import saerImg from '../../assets/projects/llm-planning/saer-dimensions.svg';
+import resultsImg from '../../assets/projects/llm-planning/results-bars.svg';
+
+## Overview
+
+Large language models are surprisingly good at *sounding* like they can plan a multi-step task. Give one a goal — "craft an iron pickaxe" — and it will narrate a plausible sequence of steps. The trouble starts when you actually run it: somewhere around step three or four, it quietly asks for an item it never made, and the whole plan collapses.
+
+I spent six months trying to find out *why*. The answer wasn't what I expected.
+
+## The problem: a missing link, not a missing brain
+
+A crafting task is really a dependency chain. You can't make planks until you've chopped a log; you can't make a crafting table until you have planks; and so on, all the way to iron. The cover diagram above traces one such chain.
+
+When a model fails, it usually isn't because it can't reason about the chain. It's because, at the moment it has to choose the next action, **the right prerequisite isn't anywhere in its context**. The model isn't dumb — the information it needs was simply never retrieved. I call this the *knowledge bottleneck*: planning fails not at the reasoning step, but at the retrieval step that feeds it.
+
+## What I built: SAER
+
+SAER (Situation-Aware Evidence Retrieval) scores candidate context along four dimensions before it goes into the prompt, instead of just returning whatever is most textually similar.
+
+<Figure
+  src={saerImg}
+  alt="SAER scores context along four dimensions that converge into a single score"
+  caption="Fig 2 — SAER weighs four dimensions; the non-obvious lesson is that 'most useful' is not the same as 'most similar'."
+/>
+
+The non-obvious finding: **"most useful" is not the same as "most similar."** Plain similarity retrieval grabs text that *looks* related; SAER grabs context that actually unblocks the next planning step. The four dimensions and their weights were chosen by ablation — each one earned its place by removing it and watching performance drop.
+
+| Dimension | What it captures |
+|---|---|
+| A — usefulness | does this directly enable the next step? |
+| B — novelty | does this add information the model doesn't already have? |
+| C — specificity | is this about *this* task, not a generic one? |
+| D — recency | is this still true given what's already happened? |
+
+To prove any of this, I had to build the evaluation myself.
+
+## The evaluation harness
+
+"It works better" proves nothing. I designed an evaluation that could actually tell a real effect from noise:
+
+- **60 tasks**, each a real multi-step dependency chain, hand-verified.
+- **7 models**, so a result couldn't be a quirk of one architecture.
+- **3 random seeds** each, to separate signal from run-to-run variance.
+- That is **60 × 7 × 3 = 1,260 evaluations**, all run through the same harness.
+
+<Callout label="statistics">
+Significance is tested with **McNemar's test** on paired outcomes (each task attempted by the same model with and without SAER), and p-values are corrected with **Bonferroni** across the model set. The point is that a 26% → 80% jump has to survive "could this be luck?" before it means anything.
+</Callout>
+
+## Results
+
+<Figure
+  src={resultsImg}
+  alt="Bar chart comparing planning success of baseline retrieval versus SAER across difficulty levels"
+  caption="Fig 3 — planning success, baseline (grey) vs SAER (terracotta), across difficulty."
+/>
+
+| | Baseline retrieval | With SAER |
+|---|---|---|
+| Overall planning success | 26% | **80%** |
+| Hardest multi-hop tasks | 0% | **92%** |
+
+The hardest tasks — long chains with many prerequisites — went from literally zero to nearly all solved. That's where the knowledge bottleneck bites hardest, and where fixing retrieval pays off most.
+
+## Why this matters beyond Minecraft
+
+Minecraft is a sandbox, but the failure mode is general. Any agent that plans over multiple steps — a coding agent, a research assistant, a robot — hits the same wall: it can only act on what's in its context. SAER is a small, cheap change to *what gets retrieved*, and it moved the needle more than I expected a retrieval tweak could.
+
+## Skills & tools
+
+Python · LangChain · retrieval / RAG · experimental design · statistics (McNemar, Bonferroni, ablation). The repository and paper will be linked here once the AAAI Student Abstract submission is out (July 2026).

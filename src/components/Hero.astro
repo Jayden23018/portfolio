@@ -1,0 +1,146 @@
+---
+import { Image } from 'astro:assets';
+import { site } from '../data/site';
+import heroPhoto from '../assets/placeholder-photo-1.png';
+---
+
+<section class="hero container">
+  <div class="hero__text">
+    <span class="hero__kicker">Portfolio · 2026</span>
+
+    <h1 class="hero__title">
+      {site.tagline.split('\n').map((line, i, arr) => (
+        <>
+          {line}{i < arr.length - 1 && <br />}
+        </>
+      ))}
+    </h1>
+
+    <p class="hero__standfirst">{site.standfirst}</p>
+
+    <p class="hero__meta">
+      {site.city}
+      <span class="hero__sep">·</span>
+      {site.major}
+      <span class="hero__sep">·</span>
+      <a href={site.social.github}  class="hero__meta-link">GitHub</a>
+    </p>
+  </div>
+
+  <figure class="hero__figure">
+    <Image
+      src={heroPhoto}
+      alt="Placeholder hero photo — TODO replace with a real shot"
+      class="hero__photo"
+      widths={[600, 900, 1200]}
+      sizes="(max-width: 900px) 100vw, 45vw"
+      loading="eager"
+      fetchpriority="high"
+    />
+    <figcaption class="hero__caption">{site.heroCaption}</figcaption>
+  </figure>
+</section>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: 7fr 5fr;
+    gap: var(--space-12);
+    align-items: start;
+    padding-top: clamp(3rem, 6vw, 5rem);
+    padding-bottom: var(--section-gap);
+  }
+
+  /* Kicker */
+  .hero__kicker {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.02em;
+    color: var(--accent);
+    margin-bottom: var(--space-4);
+  }
+
+  /* Display title */
+  .hero__title {
+    font-family: var(--font-display);
+    font-size: clamp(2.6rem, 6vw, 4.6rem);
+    font-weight: 460;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    margin-bottom: var(--space-6);
+  }
+
+  /* Standfirst */
+  .hero__standfirst {
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    color: var(--ink-2);
+    max-width: 52ch;
+    margin-bottom: var(--space-6);
+  }
+
+  /* Meta row */
+  .hero__meta {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.02em;
+    color: var(--ink-2);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .hero__sep {
+    color: var(--rule);
+  }
+
+  .hero__meta-link {
+    color: var(--ink-2);
+    text-decoration: none;
+  }
+
+  .hero__meta-link:hover {
+    color: var(--accent);
+  }
+
+  /* Photo */
+  .hero__figure {
+    position: sticky;
+    top: calc(4rem + var(--space-8)); /* below masthead */
+  }
+
+  .hero__photo {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+    border-radius: 2px;
+    display: block;
+  }
+
+  .hero__caption {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--ink-2);
+    margin-top: var(--space-2);
+  }
+
+  /* Responsive: single column below 900px */
+  @media (max-width: 900px) {
+    .hero {
+      grid-template-columns: 1fr;
+    }
+
+    .hero__figure {
+      position: static;
+      order: -1; /* photo first on mobile */
+    }
+
+    .hero__photo {
+      aspect-ratio: 16 / 9;
+    }
+  }
+</style>

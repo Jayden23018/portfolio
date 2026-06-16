@@ -1,0 +1,114 @@
+---
+interface Props {
+  url:   string;
+  title: string;
+}
+
+function extractId(url: string): string | null {
+  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+const { url, title } = Astro.props;
+const videoId = extractId(url);
+---
+
+{videoId && (
+  <div class="ytf" data-vid={videoId}>
+    <img
+      src={`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`}
+      alt={`Thumbnail for: ${title}`}
+      loading="lazy"
+      class="ytf__thumb"
+    />
+    <button class="ytf__btn" aria-label={`Play: ${title}`} type="button">
+      <svg class="ytf__icon" viewBox="0 0 68 48" aria-hidden="true" focusable="false">
+        <path d="M66.5 7.7c-.8-2.9-2.9-5.2-5.8-5.9C55.8.4 34 .4 34 .4S12.2.4 7.3 1.8C4.4 2.5 2.3 4.8 1.5 7.7.1 12.6.1 24 .1 24s0 11.4 1.4 16.3c.8 2.9 2.9 5.2 5.8 5.9C12.2 47.6 34 47.6 34 47.6s21.8 0 26.7-1.4c2.9-.7 5-3 5.8-5.9 1.4-4.9 1.4-16.3 1.4-16.3s0-11.4-1.4-16.3z" fill="#B0492B"/>
+        <path d="M45.5 24 27 14v20z" fill="#F4F0E6"/>
+      </svg>
+    </button>
+  </div>
+)}
+
+<script>
+  document.querySelectorAll<HTMLElement>('.ytf').forEach(el => {
+    const btn = el.querySelector('.ytf__btn')!;
+    const vid = el.dataset.vid!;
+
+    function activate() {
+      const iframe = document.createElement('iframe');
+      iframe.src        = `https://www.youtube.com/embed/${vid}?autoplay=1`;
+      iframe.title      = btn.getAttribute('aria-label') ?? 'Video';
+      iframe.allow      = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+      iframe.allowFullscreen = true;
+      iframe.className  = 'ytf__iframe';
+      el.replaceChildren(iframe);
+    }
+
+    btn.addEventListener('click', activate);
+    btn.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
+    });
+  });
+</script>
+
+<style>
+  .ytf {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: var(--ink);
+    border-radius: 2px;
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .ytf__thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .ytf__btn {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .ytf__btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -4px;
+  }
+
+  .ytf__icon {
+    width: 68px;
+    height: 48px;
+    opacity: 0.9;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+  }
+
+  .ytf__btn:hover .ytf__icon,
+  .ytf__btn:focus-visible .ytf__icon {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ytf__icon { transition: none; }
+    .ytf__btn:hover .ytf__icon { transform: none; }
+  }
+
+  .ytf__iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
+</style>

@@ -1,0 +1,43 @@
+---
+// Constraint / key-note box. rule border + accent left rule + bg-2 surface.
+interface Props {
+  label?: string;
+}
+const { label } = Astro.props;
+---
+
+<aside class="callout">
+  {label && <span class="callout__label">{label}</span>}
+  <div class="callout__body">
+    <slot />
+  </div>
+</aside>
+
+<style>
+  .callout {
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    background: var(--bg-2);
+    padding: var(--space-5);
+    margin: var(--space-8) 0;
+  }
+
+  .callout__label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.03em;
+    color: var(--accent);
+    margin-bottom: var(--space-2);
+  }
+
+  .callout__body {
+    font-size: 0.98rem;
+    line-height: 1.6;
+    color: var(--ink);
+  }
+
+  .callout__body :global(p:last-child) {
+    margin-bottom: 0;
+  }
+</style>

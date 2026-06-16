@@ -1,0 +1,58 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import HoverImageList from '../../components/HoverImageList.astro';
+
+const projects = await getCollection('projects', ({ data }) => !data.draft);
+const sorted = projects.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+
+const items = sorted.map(p => ({
+  slug:  p.id,
+  title: p.data.title,
+  hook:  p.data.hook,
+  year:  p.data.date.getFullYear().toString(),
+  meta:  p.data.tech.slice(0, 3).join(', '),
+  cover: p.data.cover,
+}));
+---
+
+<Base
+  title="Work — Jayden W."
+  description="Engineering and research projects by Jayden W."
+>
+  <div class="container page-work">
+    <header class="page-work__header">
+      <h1 class="page-work__title">Work</h1>
+      <p class="page-work__sub">Engineering &amp; projects</p>
+    </header>
+
+    <HoverImageList items={items} basePath="/work" />
+  </div>
+</Base>
+
+<style>
+  .page-work {
+    padding-block: clamp(3rem, 6vw, 5rem) var(--section-gap);
+  }
+
+  .page-work__header {
+    margin-bottom: var(--space-12);
+  }
+
+  .page-work__title {
+    font-family: var(--font-display);
+    font-size: clamp(2.6rem, 6vw, 4.6rem);
+    font-weight: 460;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+
+  .page-work__sub {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.02em;
+    color: var(--ink-2);
+    margin-top: var(--space-2);
+  }
+</style>

@@ -1,0 +1,80 @@
+---
+title: "Virtual Contrast-Enhanced CT Synthesis"
+hook: "I trained a model that looked great on every metric — then discovered the metrics were lying."
+category: "Clinical AI Research"
+date: 2026-01-01
+role: "Hospital research team"
+timeline: "Jan 2026 – Present"
+status: "Active · retraining on aligned data · deployment pending"
+contribution: "The clinical team provided the scans and the clinical question; I independently discovered the slice-misalignment bug and wrote the alignment algorithm and both filtering gates."
+summary: "A medical imaging project that became a lesson in why you never trust a loss curve until you've looked at the data with your own eyes."
+pullQuote: "That gap between what the metrics said and what my eyes told me is what this project is really about."
+metrics:
+  - value: "150–190 mm"
+    label: "hidden scan-range offset I found"
+  - value: "20→15"
+    label: "pairs after my alignment filter"
+  - value: "55,639"
+    label: "slices · 17 patients"
+tech: ["Python", "PyTorch", "Medical imaging (DICOM)", "Image registration"]
+# No public repo — hospital data under NDA. See "Where things stand".
+links: {}
+cover: ../../assets/projects/virtual-cect/cover.svg
+coverCaption: "Two scans of the same patient, starting at different positions along the body — the misalignment that made every metric lie."
+featured: true
+draft: false
+---
+
+import Figure from '../../components/Figure.astro';
+import Callout from '../../components/Callout.astro';
+import beforeAfterImg from '../../assets/projects/virtual-cect/before-after.svg';
+import pipelineImg from '../../assets/projects/virtual-cect/alignment-pipeline.svg';
+
+## The moment I stopped trusting my numbers
+
+Virtual contrast-enhanced CT is a genuinely useful idea: roughly 15% of patients can't receive iodine contrast (kidney disease, allergy), so a model that synthesizes a contrast scan from a plain one could spare them a second, contrast-loaded acquisition. The clinical team handed me paired plain/contrast scans and asked me to train a synthesis model.
+
+I did. The loss curves were beautiful. SSIM climbed past 0.88. By every standard metric, the model was learning to turn a plain scan into a contrast one.
+
+Then I opened a few predictions next to the ground truth — and the anatomy didn't match. The model wasn't synthesizing contrast into the *right* slice. It was painting contrast onto the wrong part of the body and still scoring well, because the metric was comparing the wrong things.
+
+## What I actually found: the slices were shifted
+
+<Figure
+  src={beforeAfterImg}
+  alt="Paired CT slices before and after alignment, showing mismatched vs matching anatomy"
+  caption="Fig 3 — before alignment, the model compares two different anatomical locations; after, it compares the same slice."
+/>
+
+The paired scans weren't aligned. A plain CT and a contrast CT of the same patient are two separate acquisitions — they start at slightly different positions along the body. In this dataset that offset was **150–190 mm**. So "slice 47 of the plain scan" and "slice 47 of the contrast scan" were not the same anatomical slice. Across **17 patients (55,639 slices in total)**, the model had learned to map one to the other anyway, and SSIM rewarded it — because SSIM measures structural similarity, not whether you're looking at the same organ.
+
+<Callout label="the uncomfortable part">
+SSIM 0.88 is a real number from a real run, but it is **pre-correction**, measured on misaligned data. It is not a result I would put on a poster. The honest headline of this project isn't a metric — it's that I caught the bug before anyone was misled by a pretty curve.
+</Callout>
+
+## The alignment algorithm
+
+This is the part I built independently. Given two scans of the same patient, I align them before they ever reach the model:
+
+<Figure
+  src={pipelineImg}
+  alt="Four-stage alignment pipeline: resample, cross-correlation along z, then two gating checks"
+  caption="Fig 2 — the alignment pipeline I wrote: resample, find the best z-shift by normalized cross-correlation, then two gates."
+/>
+
+1. **Resample both volumes to a common voxel grid**, so coordinates mean the same thing in both.
+2. **Slide one volume along the z-axis and compute normalized cross-correlation at each offset** — the offset with the highest correlation is the true alignment.
+3. **Gate 1** drops any pair whose best overlap is still too low (some scans simply don't share enough anatomy).
+4. **Gate 2** drops pairs that align mathematically but not anatomically.
+
+Twenty candidate pairs went in; fifteen came out verified. Those fifteen are the only ones I'll train on.
+
+## Where things stand
+
+This is an active project, and I want to be honest about its limits:
+
+- There is **no true held-out test set yet** — validation patients currently share identity with training patients, which the retrain fixes.
+- The model is being **retrained from scratch on the 15 aligned pairs**; the earlier numbers describe a model I no longer trust.
+- Deployment is **pending** clinical review; the underlying data is under hospital NDA, so no public repo.
+
+The win here isn't a finished model. It's that I caught a systematic error that made every metric lie — and built the fix before anyone downstream got misled.

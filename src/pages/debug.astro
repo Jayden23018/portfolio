@@ -1,0 +1,42 @@
+---
+import { getCollection } from 'astro:content';
+
+const projects = await getCollection('projects', ({ data }) => !data.draft);
+const photos   = await getCollection('photos');
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Schema debug</title>
+    <style>
+      body { font-family: monospace; padding: 2rem; background: #F4F0E6; color: #211E18; }
+      h2 { margin-top: 2rem; }
+      pre { background: #ECE7DA; padding: 1rem; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <h1>Content collection debug</h1>
+
+    <h2>Projects ({projects.length})</h2>
+    {projects.map(p => (
+      <pre>
+id: {p.id}
+title: {p.data.title}
+featured: {String(p.data.featured)}
+tech: {p.data.tech.join(', ')}
+cover: {p.data.cover.src}
+      </pre>
+    ))}
+
+    <h2>Photo series ({photos.length})</h2>
+    {photos.map(s => (
+      <pre>
+id: {s.id}
+title: {s.data.title}
+images: {s.data.images.length}
+      </pre>
+    ))}
+  </body>
+</html>

@@ -1,0 +1,124 @@
+---
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+import TechTags from './TechTags.astro';
+
+interface Props {
+  index:   number;
+  slug:    string;
+  title:   string;
+  summary: string;
+  tech:    string[];
+  cover:   ImageMetadata;
+}
+
+const { index, slug, title, summary, tech, cover } = Astro.props;
+const num = String(index + 1).padStart(2, '0');
+const coverIsSvg = cover.format === 'svg';
+---
+
+<article class="project-card">
+  <span class="project-card__num" aria-hidden="true">{num}</span>
+
+  <a href={`/work/${slug}`} class="project-card__inner">
+    <div class="project-card__text">
+      <h3 class="project-card__title">{title}</h3>
+      <p class="project-card__summary">{summary}</p>
+      <TechTags tags={tech} />
+    </div>
+
+    <div class="project-card__thumb-wrap">
+      {coverIsSvg ? (
+        <img src={cover.src} alt={title} class="project-card__thumb" loading="lazy" />
+      ) : (
+        <Image
+          src={cover}
+          alt={title}
+          class="project-card__thumb"
+          widths={[320, 480]}
+          sizes="(max-width: 640px) 100vw, 320px"
+        />
+      )}
+    </div>
+  </a>
+</article>
+
+<style>
+  .project-card {
+    display: grid;
+    grid-template-columns: var(--space-12) 1fr;
+    gap: 0 var(--space-4);
+    border-top: 1px solid var(--rule);
+    padding-block: var(--space-8);
+  }
+
+  .project-card:last-child {
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .project-card__num {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--accent);
+    padding-top: 0.3em;
+  }
+
+  .project-card__inner {
+    display: flex;
+    gap: var(--space-8);
+    justify-content: space-between;
+    align-items: flex-start;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .project-card__inner:hover .project-card__title {
+    color: var(--accent);
+  }
+
+  .project-card__text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    min-width: 0;
+  }
+
+  .project-card__title {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 460;
+    line-height: 1.2;
+    color: var(--ink);
+    transition: color 0.15s ease;
+  }
+
+  .project-card__summary {
+    font-size: 1rem;
+    color: var(--ink-2);
+    line-height: 1.55;
+  }
+
+  .project-card__thumb-wrap {
+    flex-shrink: 0;
+    width: clamp(100px, 20vw, 200px);
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    border-radius: 3px;
+  }
+
+  .project-card__thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .project-card__link { transition: none; }
+  }
+
+  @media (max-width: 640px) {
+    .project-card__thumb-wrap {
+      display: none;
+    }
+  }
+</style>

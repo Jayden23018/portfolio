@@ -1,0 +1,59 @@
+---
+interface Props {
+  delay?: number; // seconds, for stagger
+  class?: string;
+}
+const { delay = 0, class: className } = Astro.props;
+---
+
+<div class:list={['reveal', className]} data-reveal data-reveal-delay={delay}>
+  <slot />
+</div>
+
+<script>
+  import { gsap } from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+  gsap.registerPlugin(ScrollTrigger);
+
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  document.querySelectorAll<HTMLElement>('[data-reveal]').forEach(el => {
+    const delay = parseFloat(el.dataset.revealDelay ?? '0');
+
+    if (prefersReduced) {
+      gsap.set(el, { opacity: 1, y: 0 });
+      return;
+    }
+
+    gsap.fromTo(
+      el,
+      { opacity: 0, y: 20 },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.65,
+        delay,
+        ease: 'power2.out',
+        scrollTrigger: {
+          trigger: el,
+          start: 'top 88%',
+          once: true,
+        },
+      }
+    );
+  });
+</script>
+
+<style>
+  .reveal {
+    /* Prevent flash before GSAP sets initial state */
+    opacity: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal {
+      opacity: 1;
+    }
+  }
+</style>

@@ -1,0 +1,233 @@
+---
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+import Lightbox from './Lightbox.astro';
+
+interface PhotoItem {
+  src: ImageMetadata;
+  alt: string;
+  caption?: string;
+  span: 'full' | 'half';
+}
+
+interface Props {
+  images: PhotoItem[];
+  id: string;
+}
+
+const { images, id } = Astro.props;
+
+type FullRow     = { type: 'full';      img: PhotoItem; idx: number };
+type PairRow     = { type: 'pair';      a: PhotoItem; aIdx: number; b: PhotoItem; bIdx: number };
+type HalfSoloRow = { type: 'half-solo'; img: PhotoItem; idx: number };
+type Row = FullRow | PairRow | HalfSoloRow;
+
+const rows: Row[] = [];
+let i = 0;
+while (i < images.length) {
+  const cur = images[i];
+  if (cur.span === 'full') {
+    rows.push({ type: 'full', img: cur, idx: i });
+    i++;
+  } else if (i + 1 < images.length && images[i + 1].span === 'half') {
+    rows.push({ type: 'pair', a: cur, aIdx: i, b: images[i + 1], bIdx: i + 1 });
+    i += 2;
+  } else {
+    rows.push({ type: 'half-solo', img: cur, idx: i });
+    i++;
+  }
+}
+---
+
+<div class="pg" id={`pg-${id}`}>
+  {rows.map(row => (
+    <>
+      {row.type === 'full' && (
+        <figure class="pg__figure pg__figure--full">
+          <button
+            class="pg__trigger"
+            type="button"
+            data-lb-idx={row.idx}
+            aria-label={`View photo: ${row.img.alt}`}
+          >
+            <Image
+              src={row.img.src}
+              alt={row.img.alt}
+              class="pg__img"
+              widths={[800, 1200, 1600]}
+              sizes="(max-width: 640px) 100vw, 90vw"
+              loading="lazy"
+            />
+          </button>
+          {row.img.caption && <figcaption class="pg__caption">{row.img.caption}</figcaption>}
+        </figure>
+      )}
+
+      {row.type === 'pair' && (
+        <div class="pg__pair">
+          <figure class="pg__figure pg__figure--half">
+            <button
+              class="pg__trigger"
+              type="button"
+              data-lb-idx={row.aIdx}
+              aria-label={`View photo: ${row.a.alt}`}
+            >
+              <Image
+                src={row.a.src}
+                alt={row.a.alt}
+                class="pg__img"
+                widths={[600, 900, 1200]}
+                sizes="(max-width: 640px) 100vw, 48vw"
+                loading="lazy"
+              />
+            </button>
+            {row.a.caption && <figcaption class="pg__caption">{row.a.caption}</figcaption>}
+          </figure>
+          <figure class="pg__figure pg__figure--half">
+            <button
+              class="pg__trigger"
+              type="button"
+              data-lb-idx={row.bIdx}
+              aria-label={`View photo: ${row.b.alt}`}
+            >
+              <Image
+                src={row.b.src}
+                alt={row.b.alt}
+                class="pg__img"
+                widths={[600, 900, 1200]}
+                sizes="(max-width: 640px) 100vw, 48vw"
+                loading="lazy"
+              />
+            </button>
+            {row.b.caption && <figcaption class="pg__caption">{row.b.caption}</figcaption>}
+          </figure>
+        </div>
+      )}
+
+      {row.type === 'half-solo' && (
+        <figure class="pg__figure pg__figure--half-solo">
+          <button
+            class="pg__trigger"
+            type="button"
+            data-lb-idx={row.idx}
+            aria-label={`View photo: ${row.img.alt}`}
+          >
+            <Image
+              src={row.img.src}
+              alt={row.img.alt}
+              class="pg__img"
+              widths={[600, 900, 1200]}
+              sizes="(max-width: 640px) 100vw, 60vw"
+              loading="lazy"
+            />
+          </button>
+          {row.img.caption && <figcaption class="pg__caption">{row.img.caption}</figcaption>}
+        </figure>
+      )}
+    </>
+  ))}
+</div>
+
+<Lightbox images={images} id={id} />
+
+<script define:vars={{ id }}>
+  (() => {
+    const grid   = document.getElementById(`pg-${id}`);
+    const dialog = document.getElementById(`lb-${id}`);
+    if (!grid || !dialog) return;
+
+    grid.querySelectorAll('[data-lb-idx]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        dialog.dispatchEvent(
+          new CustomEvent('lb:open', { detail: { idx: Number(btn.dataset.lbIdx) } })
+        );
+      });
+    });
+  })();
+</script>
+
+<style>
+  .pg {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .pg__figure {
+    margin: 0;
+  }
+
+  /* Full-bleed: spans full viewport width, escapes any parent container */
+  .pg__figure--full {
+    width: 100vw;
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  /* Pairs + solos: constrained to match page content width */
+  .pg__pair,
+  .pg__figure--half-solo {
+    max-width: var(--maxw);
+    margin-inline: auto;
+    padding-inline: var(--px);
+    width: 100%;
+  }
+
+  .pg__pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+  }
+
+  .pg__figure--half-solo {
+    max-width: min(var(--maxw), calc(65vw));
+    /* keep it left-aligned for natural reading flow */
+    margin-inline: var(--px) auto;
+  }
+
+  .pg__trigger {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: zoom-in;
+  }
+
+  .pg__trigger:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  .pg__img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  /* Caption indented to match constrained content */
+  .pg__figure--full .pg__caption {
+    padding-inline: var(--px);
+    max-width: var(--maxw);
+    margin-inline: auto;
+  }
+
+  .pg__caption {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+    color: var(--ink-2);
+    margin-top: var(--space-2);
+  }
+
+  @media (max-width: 640px) {
+    .pg__pair {
+      grid-template-columns: 1fr;
+    }
+    .pg__figure--half-solo {
+      max-width: 100%;
+      margin-inline: var(--px);
+    }
+  }
+</style>

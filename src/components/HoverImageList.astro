@@ -1,0 +1,310 @@
+---
+import { Image, getImage } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+
+interface Item {
+  slug:    string;
+  title:   string;
+  hook?:   string;
+  year:    string;
+  meta:    string;
+  cover:   ImageMetadata;
+}
+
+interface Props {
+  items:    Item[];
+  basePath: string;
+}
+
+const { items, basePath } = Astro.props;
+
+// Pre-compute 420px webp for the cursor preview (avoids using unprocessed paths).
+// SVG covers can't be rasterized by sharp, so pass their source through unchanged.
+const previewSrcs = await Promise.all(
+  items.map(async (item) => {
+    if (item.cover.format === 'svg') {
+      return { src: item.cover.src };
+    }
+    return getImage({ src: item.cover, width: 420, format: 'webp' });
+  })
+);
+---
+
+<div class="hil-wrap">
+  <ul class="hil" role="list">
+    {items.map((item, i) => (
+      <li class="hil__item">
+        <a
+          href={`${basePath}/${item.slug}`}
+          class="hil__link"
+          data-preview={previewSrcs[i].src}
+          data-alt={item.title}
+        >
+          <span class="hil__num" aria-hidden="true">
+            {String(i + 1).padStart(2, '0')}
+          </span>
+
+          <span class="hil__title-wrap">
+            <span class="hil__title">{item.title}</span>
+            {item.hook && <span class="hil__hook">{item.hook}</span>}
+          </span>
+
+          <span class="hil__meta">{item.year} · {item.meta}</span>
+
+          <!-- Mobile inline thumbnail (visible on touch/hover:none devices) -->
+          <div class="hil__thumb-wrap" aria-hidden="true">
+            {item.cover.format === 'svg' ? (
+              <img src={item.cover.src} alt="" class="hil__thumb" loading="lazy" />
+            ) : (
+              <Image
+                src={item.cover}
+                alt=""
+                class="hil__thumb"
+                widths={[200, 400]}
+                sizes="120px"
+                loading="lazy"
+              />
+            )}
+          </div>
+        </a>
+      </li>
+    ))}
+  </ul>
+
+  <!-- Cursor-following preview (desktop / pointer devices only) -->
+  <div class="hil-preview" aria-hidden="true">
+    <img class="hil-preview__img" src="" alt="" />
+  </div>
+</div>
+
+<script>
+  (() => {
+    const wrap    = document.querySelector<HTMLElement>('.hil-wrap');
+    const preview = wrap?.querySelector<HTMLElement>('.hil-preview');
+    const img     = preview?.querySelector<HTMLImageElement>('.hil-preview__img');
+    if (!wrap || !preview || !img) return;
+
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const isHoverDevice  = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+    if (!isHoverDevice) return; // touch/coarse devices: inline thumbnails handle it
+
+    // Lerp state
+    let tx = 0, ty = 0; // target
+    let cx = 0, cy = 0; // current
+    const EASE = prefersReduced ? 1 : 0.1;
+    let rafId: number | null = null;
+    let active = false;
+
+    function lerp(a: number, b: number, t: number) { return a + (b - a) * t; }
+
+    function tick() {
+      cx = lerp(cx, tx, EASE);
+      cy = lerp(cy, ty, EASE);
+      preview.style.transform = `translate(${cx}px, ${cy}px)`;
+
+      if (active) {
+        rafId = requestAnimationFrame(tick);
+      } else {
+        rafId = null;
+      }
+    }
+
+    function show(src: string, alt: string) {
+      if (img.getAttribute('src') !== src) {
+        img.src = src;
+        img.alt = alt;
+      }
+      preview.style.opacity = '1';
+      active = true;
+      if (!rafId) rafId = requestAnimationFrame(tick);
+    }
+
+    function hide() {
+      preview.style.opacity = '0';
+      active = false;
+    }
+
+    const list = wrap.querySelector('.hil')!;
+
+    list.querySelectorAll<HTMLAnchorElement>('.hil__link').forEach(link => {
+      const src = link.dataset.preview ?? '';
+      const alt = link.dataset.alt ?? '';
+
+      link.addEventListener('pointerenter', () => show(src, alt));
+      link.addEventListener('pointerleave', () => hide());
+
+      // Keyboard focus: show at fixed position relative to the link
+      link.addEventListener('focus', () => {
+        const rect = link.getBoundingClientRect();
+        tx = rect.right + 32;
+        ty = rect.top + rect.height / 2 - 130;
+        if (prefersReduced) { cx = tx; cy = ty; }
+        show(src, alt);
+      });
+      link.addEventListener('blur', () => hide());
+    });
+
+    // Cursor tracking across the list
+    list.addEventListener('pointermove', (e: PointerEvent) => {
+      tx = e.clientX + 28;
+      ty = e.clientY - 130;
+    });
+
+    list.addEventListener('pointerleave', () => hide());
+  })();
+</script>
+
+<style>
+  .hil-wrap {
+    position: relative;
+  }
+
+  .hil {
+    list-style: none;
+    padding: 0;
+  }
+
+  .hil__item {
+    border-top: 1px solid var(--rule);
+  }
+
+  .hil__item:last-child {
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .hil__link {
+    display: grid;
+    grid-template-columns: var(--space-12) 1fr auto;
+    align-items: start;
+    gap: 0 var(--space-4);
+    padding-block: var(--space-8);
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .hil__link:hover .hil__title,
+  .hil__link:focus-visible .hil__title {
+    color: var(--accent);
+  }
+
+  .hil__num {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--accent);
+    grid-column: 1;
+    padding-top: 0.35rem;
+  }
+
+  .hil__title-wrap {
+    grid-column: 2;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .hil__title {
+    font-family: var(--font-display);
+    font-size: clamp(1.4rem, 2.4vw, 1.7rem);
+    font-weight: 460;
+    line-height: 1.2;
+    color: var(--ink);
+    transition: color 0.15s ease;
+  }
+
+  .hil__hook {
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    line-height: 1.45;
+    color: var(--ink-2);
+    max-width: 52ch;
+  }
+
+  .hil__meta {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+    color: var(--ink-2);
+    grid-column: 3;
+    white-space: nowrap;
+    padding-top: 0.5rem;
+  }
+
+  /* Mobile thumbnail — hidden on desktop (cursor preview handles it there) */
+  .hil__thumb-wrap {
+    display: none;
+    grid-row: 2;
+    grid-column: 2 / 4;
+    margin-top: var(--space-3);
+    width: 120px;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    border-radius: 2px;
+  }
+
+  .hil__thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  @media (hover: none) {
+    .hil__thumb-wrap {
+      display: block;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .hil__link {
+      grid-template-columns: var(--space-8) 1fr;
+    }
+    .hil__meta {
+      grid-column: 2;
+      grid-row: 2;
+      margin-top: var(--space-1);
+      padding-top: 0;
+    }
+    .hil__num {
+      padding-top: 0.2rem;
+    }
+  }
+
+  /* Cursor-following preview */
+  .hil-preview {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 360px;
+    pointer-events: none;
+    z-index: 50;
+    opacity: 0;
+    border-radius: 6px;
+    overflow: hidden;
+    will-change: transform;
+    transition: opacity 0.18s ease;
+  }
+
+  .hil-preview__img {
+    width: 100%;
+    aspect-ratio: 3 / 2;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* Never show floating preview on touch / hover:none devices */
+  @media (hover: none), (pointer: coarse) {
+    .hil-preview {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hil__title {
+      transition: none;
+    }
+    .hil-preview {
+      transition: opacity 0.01s;
+    }
+  }
+</style>
