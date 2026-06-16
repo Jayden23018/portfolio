@@ -9,8 +9,10 @@ export const site = {
   city:       'Hong Kong',
   school:     'SCIE',
   major:      'Computer Science',
-  // TODO: replace with the real email address before launch
-  email:      'TODO: real email',
+  email: {
+    school:   's23018.Wang@stu.scie.com.cn', // SCIE — academic / admissions
+    personal: 'zw6963470@gmail.com',          // personal / international
+  },
   social: {
     github:    'https://github.com/Jayden23018',
     instagram: '', // TODO: real Instagram handle

@@ -10,17 +10,12 @@ const socials = [
   { href: site.social.bilibili,  label: 'Bilibili' },
 ].filter((s) => Boolean(s.href));
 
-const hasEmail = site.email.includes('@');
 ---
 
 <footer class="footer" id="contact">
   <div class="container footer__inner">
     <div class="footer__left">
-      {hasEmail ? (
-        <a href={`mailto:${site.email}`} class="footer__email">{site.email}</a>
-      ) : (
-        <span class="footer__email footer__email--todo">{site.email} — coming soon</span>
-      )}
+      <a href={`mailto:${site.email.school}`} class="footer__email">{site.email.school}</a>
       <ul class="footer__socials" role="list">
         {socials.map(({ href, label }) => (
           <li>

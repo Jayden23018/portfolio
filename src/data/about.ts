@@ -11,7 +11,7 @@ export const about = {
   portraitAlt: 'Portrait of Jayden', // TODO: replace placeholder portrait
 
   // Slugs into the projects collection — covers/hooks stay in sync with Work.
-  featuredWork: ['llm-planning', 'blindrun'],
+  featuredWork: ['llm-planning', 'virtual-cect', 'blindrun'],
 
   honors: [
     { name: 'USACO Gold',     note: 'USA Computing Olympiad, top division' },

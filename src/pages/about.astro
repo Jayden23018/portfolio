@@ -15,6 +15,12 @@ const featured = about.featuredWork
   .map((slug) => bySlug.get(slug))
   .filter((p): p is (typeof allProjects)[number] => Boolean(p));
 
+const featureLabel: Record<string, string> = {
+  'llm-planning': 'AI research',
+  'virtual-cect': 'clinical AI',
+  'blindrun':     'engineering',
+};
+
 const atAGlance = [
   { label: 'based in',   value: site.city },
   { label: 'school',     value: site.school },
@@ -59,7 +65,7 @@ const atAGlance = [
     <!-- 3 & 4. Featured-work read-throughs -->
     {featured.map((p, i) => {
       const coverIsSvg = p.data.cover.format === 'svg';
-      const label = i === 0 ? 'research' : "the one I'm proudest of";
+      const label = featureLabel[p.id] ?? 'project';
       const alt = p.data.coverCaption ?? p.data.title;
       return (
         <Reveal>
@@ -120,14 +126,19 @@ const atAGlance = [
 
     <!-- 7. Contact + résumé -->
     <Reveal>
-      <section class="about__section" aria-labelledby="contact-heading">
+      <section class="about__section" id="contact" aria-labelledby="contact-heading">
         <h2 class="about__section-label" id="contact-heading">contact</h2>
         <div class="about__contact-row">
-          {site.email.includes('@') ? (
-            <a href={`mailto:${site.email}`} class="about__contact-link">{site.email}</a>
-          ) : (
-            <span class="about__contact-todo">{site.email} — coming soon</span>
-          )}
+          <div class="about__emails">
+            <a href={`mailto:${site.email.school}`} class="about__contact-link">
+              <span class="about__contact-label">school</span>
+              {site.email.school}
+            </a>
+            <a href={`mailto:${site.email.personal}`} class="about__contact-link">
+              <span class="about__contact-label">personal</span>
+              {site.email.personal}
+            </a>
+          </div>
           <a href="/resume.pdf" class="about__resume-btn" download="Jayden_W_Resume.pdf">
             résumé PDF ↓
           </a>
@@ -399,16 +410,34 @@ const atAGlance = [
     gap: var(--space-4);
   }
 
-  .about__contact-link,
-  .about__contact-todo {
+  .about__emails {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .about__contact-link {
     font-family: var(--font-mono);
     font-size: 0.95rem;
     color: var(--accent);
     text-decoration: none;
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-3);
   }
 
-  .about__contact-todo {
-    opacity: 0.8;
+  .about__contact-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+  }
+
+  .about__contact-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    opacity: 0.7;
+    min-width: 4.5em;
   }
 
   .about__resume-btn {
