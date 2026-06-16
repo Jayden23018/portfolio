@@ -6,9 +6,9 @@ export const site = {
   tagline:    'I build AI systems,\nand photograph\nthe world.',
   standfirst:
     "I'm interested in how AI systems plan, where they fail, and how to make them reliable — and a little more human.",
-  city:       'Hong Kong',
+  city:       'Shenzhen',
   school:     'SCIE',
-  major:      'Computer Science',
+  major:      'Computer Science · Engineering',
   email: {
     school:   's23018.Wang@stu.scie.com.cn', // SCIE — academic / admissions
     personal: 'zw6963470@gmail.com',          // personal / international
