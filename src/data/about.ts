@@ -3,7 +3,7 @@
    real assets — see docs/ABOUT_PAGE.md Part 5. */
 export const about = {
   intro:
-    "I'm a high school student in Shenzhen, studying at SCIE and applying to study computer science. I spend most of my time on AI research — how systems plan, where they break, and how to make them reliable — and on building software that solves real problems for real people. The rest of the time I'm behind a camera, at a table-tennis table, or losing at Go.",
+    "I'm a high school student in Shenzhen, studying at SCIE and applying to study computer science and engineering. I spend most of my time on AI research — how systems plan, where they break, and how to make them reliable — and on building software that solves real problems for real people. The rest of the time I'm behind a camera, at a table-tennis table, or losing at Go.",
 
   theme:
     "I'm drawn to things that reward both precision and patience — which is probably why I like all of them.",
