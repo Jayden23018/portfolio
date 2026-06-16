@@ -14,10 +14,26 @@ export const about = {
   featuredWork: ['llm-planning', 'virtual-cect', 'blindrun'],
 
   honors: [
-    { name: 'USACO Gold',     note: 'USA Computing Olympiad, top division' },
-    { name: 'AIME qualifier', note: 'top ~5% of the AMC' },
-    { name: 'AMC top 5%',     note: '' },
-    { name: 'Silver, SPC',    note: 'physics competition' },
+    {
+      name: 'USACO Gold',
+      year: 2026,
+      note: 'USA Computing Olympiad, Gold division — the third of four tiers (Bronze → Silver → Gold → Platinum) in the US competitive-programming ladder.',
+    },
+    {
+      name: 'AIME qualifier',
+      year: 2025,
+      note: 'American Invitational Mathematics Examination — invitation-only, earned by top AMC scorers (~top 5% nationally).',
+    },
+    {
+      name: 'AMC 12 — top 5%',
+      year: 2025,
+      note: 'American Mathematics Competition 12, top 5% nationally — the score that qualified me for the AIME.',
+    },
+    {
+      name: 'Silver, Senior Physics Challenge',
+      year: 2025,
+      note: 'Senior Physics Challenge — Silver award.',
+    },
   ],
 
   // Beyond-the-screen hobbies; images are TODO placeholders for now.

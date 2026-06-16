@@ -63,7 +63,7 @@ const atAGlance = [
     </Reveal>
 
     <!-- 3 & 4. Featured-work read-throughs -->
-    {featured.map((p, i) => {
+    {featured.map((p) => {
       const coverIsSvg = p.data.cover.format === 'svg';
       const label = featureLabel[p.id] ?? 'project';
       const alt = p.data.coverCaption ?? p.data.title;
@@ -95,8 +95,11 @@ const atAGlance = [
         <ul class="about__honors" role="list">
           {about.honors.map((h) => (
             <li class="about__honor">
-              <span class="about__honor-name">{h.name}</span>
-              {h.note && <span class="about__honor-note"> — {h.note}</span>}
+              <div class="about__honor-head">
+                <span class="about__honor-name">{h.name}</span>
+                <span class="about__honor-year">{h.year}</span>
+              </div>
+              {h.note && <p class="about__honor-note">{h.note}</p>}
             </li>
           ))}
         </ul>
@@ -329,26 +332,53 @@ const atAGlance = [
     margin-bottom: var(--space-6);
   }
 
-  /* Honors — one restrained line, not a trophy wall */
+  /* Honors — each with a one-line context, not a bare trophy list */
   .about__honors {
     list-style: none;
     padding: 0;
+    margin: 0;
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-3) var(--space-6);
+    flex-direction: column;
+    gap: var(--space-6);
+  }
+
+  .about__honor {
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--rule);
+  }
+  .about__honor:first-child {
+    border-top: none;
+    padding-top: 0;
+  }
+
+  .about__honor-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-4);
+    margin-bottom: var(--space-1);
   }
 
   .about__honor-name {
     font-family: var(--font-display);
-    font-size: 1.05rem;
+    font-size: 1.1rem;
     font-weight: 460;
     color: var(--ink);
   }
 
-  .about__honor-note {
+  .about__honor-year {
     font-family: var(--font-mono);
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: var(--ink-2);
+    white-space: nowrap;
+  }
+
+  .about__honor-note {
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: var(--ink-2);
+    max-width: 60ch;
+    margin: 0;
   }
 
   /* Beyond */
