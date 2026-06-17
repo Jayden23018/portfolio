@@ -34,6 +34,16 @@ export const about = {
       year: 2025,
       note: 'Senior Physics Challenge — Silver award.',
     },
+    {
+      name: 'Table tennis — Level-2 athlete',
+      year: 2018,
+      note: 'Nationally certified Level-2 athlete.',
+    },
+    {
+      name: 'Go — amateur 3-dan',
+      year: 2016,
+      note: 'Amateur 3-dan ranking in Go (Weiqi).',
+    },
   ],
 
   // Beyond-the-screen hobbies; images are TODO placeholders for now.
