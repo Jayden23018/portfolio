@@ -89,7 +89,7 @@ const seriesData = sorted.map((s) => ({
     </aside>
   </div>
 
-  <script type="application/json" data-lb-data set:html={JSON.stringify(seriesData)} />
+  <script type="application/json" data-lb-data set:html={JSON.stringify(seriesData)}></script>
 </dialog>
 
 <script define:vars={{ id }}>
@@ -128,7 +128,7 @@ const seriesData = sorted.map((s) => ({
         const on = Number(t.dataset.gidx) === gidx;
         t.classList.toggle('is-current', on);
         t.setAttribute('aria-current', on ? 'true' : 'false');
-        if (on) t.scrollIntoView({ block: 'nearest' });
+        if (on) t.scrollIntoView({ block: 'center' });
       });
       if (seriesEl) seriesEl.textContent = info.year ? `${info.title} · ${info.year}` : info.title;
       if (countEl) countEl.textContent = `${info.sidx + 1} / ${info.list.length}`;
@@ -195,9 +195,14 @@ const seriesData = sorted.map((s) => ({
     padding: 0;
     margin: 0;
     overflow: hidden;
+    color: var(--ink);
+  }
+  /* Only display when open — without this the author `display:flex` below
+     would override the UA `[hidden]`/closed-dialog `display:none` and the
+     dialog would show over the grid even when closed. */
+  .lb[open] {
     display: flex;
     flex-direction: column;
-    color: var(--ink);
   }
   .lb::backdrop {
     background: var(--bg);
@@ -315,6 +320,12 @@ const seriesData = sorted.map((s) => ({
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
+  }
+  /* The `hidden` attribute must win over the display:flex above, otherwise
+     every slide/group renders stacked (photo never changes, filmstrip fixed). */
+  .lb__slide[hidden],
+  .lb__group[hidden] {
+    display: none;
   }
   .lb__group-label {
     font-family: var(--font-mono);
