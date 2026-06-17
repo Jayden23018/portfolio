@@ -18,7 +18,11 @@ input, button, textarea, select { font: inherit; }
 p, h1, h2, h3, h4, h5, h6 { overflow-wrap: break-word; }
 
 /* Base */
-html { scroll-behavior: auto; } /* Lenis handles smooth scrolling */
+html {
+  scroll-behavior: auto; /* Lenis handles smooth scrolling */
+  scrollbar-width: none; /* Firefox */
+}
+html::-webkit-scrollbar { display: none; } /* Chrome / Safari */
 
 body {
   background-color: var(--bg);
