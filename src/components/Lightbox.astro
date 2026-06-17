@@ -13,21 +13,15 @@ const sorted = [...series].sort((a, b) => a.order - b.order);
 // Every photo across all series — stacked slides, toggled by global idx.
 const allPhotos = sorted.flatMap((s) => s.photos);
 
-// Per-series thumbnail groups (~200px webp).
-const groups = await Promise.all(
-  sorted.map(async (s) => ({
-    title: s.title,
-    year: s.photos[0]?.year ?? '',
-    thumbs: await Promise.all(
-      s.photos.map(async (p) => ({
-        gidx: p.globalIdx,
-        src:
-          p.src.format === 'svg'
-            ? p.src.src
-            : (await getImage({ src: p.src, width: 200, format: 'webp' })).src,
-        alt: p.alt,
-      }))
-    ),
+// Every photo's thumbnail, flattened across all series (~200px webp).
+const allThumbs = await Promise.all(
+  allPhotos.map(async (p) => ({
+    gidx: p.globalIdx,
+    src:
+      p.src.format === 'svg'
+        ? p.src.src
+        : (await getImage({ src: p.src, width: 200, format: 'webp' })).src,
+    alt: p.alt,
   }))
 );
 
@@ -71,21 +65,14 @@ const seriesData = sorted.map((s) => ({
       <div class="lb-curtain" aria-hidden="true"></div>
     </div>
 
-    <aside class="lb__filmstrip" aria-label="Photos in this series">
-      {groups.map((g) => (
-        <div class="lb__group" data-series={g.title} hidden>
-          <span class="lb__group-label">
-            {g.title}{g.year && <span class="lb__group-year"> · {g.year}</span>}
-          </span>
-          <div class="lb__thumbs">
-            {g.thumbs.map((t) => (
-              <button class="lb-thumb" type="button" data-gidx={t.gidx} aria-label={`View photo ${t.gidx}`}>
-                <img src={t.src} alt="" class="lb-thumb__img" loading="lazy" />
-              </button>
-            ))}
-          </div>
-        </div>
-      ))}
+    <aside class="lb__filmstrip" aria-label="All photos">
+      <div class="lb__thumbs">
+        {allThumbs.map((t) => (
+          <button class="lb-thumb" type="button" data-gidx={t.gidx} aria-label={`View photo ${t.gidx}`}>
+            <img src={t.src} alt="" class="lb-thumb__img" loading="lazy" />
+          </button>
+        ))}
+      </div>
     </aside>
   </div>
 
@@ -106,7 +93,7 @@ const seriesData = sorted.map((s) => ({
     );
 
     const slides = [...dialog.querySelectorAll('.lb__slide')];
-    const groups = [...dialog.querySelectorAll('.lb__group')];
+    const allGidxs = [...dialog.querySelectorAll('.lb-thumb')].map((t) => Number(t.dataset.gidx));
     const seriesEl = dialog.querySelector('[data-series-title]');
     const countEl = dialog.querySelector('[data-count]');
     const veil = dialog.querySelector('.lb-curtain');
@@ -120,18 +107,17 @@ const seriesData = sorted.map((s) => ({
     let isAnimating = false;
 
     function setSlide(gidx) {
-      const info = seriesOf.get(gidx);
-      if (!info) return;
+      const info = seriesOf.get(gidx); // bar title/year only
       slides.forEach((el) => { el.hidden = Number(el.dataset.gidx) !== gidx; });
-      groups.forEach((g) => { g.hidden = g.dataset.series !== info.title; });
       dialog.querySelectorAll('.lb-thumb').forEach((t) => {
         const on = Number(t.dataset.gidx) === gidx;
         t.classList.toggle('is-current', on);
         t.setAttribute('aria-current', on ? 'true' : 'false');
         if (on) t.scrollIntoView({ block: 'center' });
       });
-      if (seriesEl) seriesEl.textContent = info.year ? `${info.title} · ${info.year}` : info.title;
-      if (countEl) countEl.textContent = `${info.sidx + 1} / ${info.list.length}`;
+      if (seriesEl) seriesEl.textContent = info ? (info.year ? `${info.title} · ${info.year}` : info.title) : '';
+      const i = allGidxs.indexOf(gidx);
+      if (countEl) countEl.textContent = i >= 0 ? `${i + 1} / ${allGidxs.length}` : '';
       curGidx = gidx;
     }
 
@@ -149,11 +135,11 @@ const seriesData = sorted.map((s) => ({
     }
 
     function step(delta) {
-      const info = seriesOf.get(curGidx);
-      if (!info) return;
-      const len = info.list.length;
-      const ni = (info.sidx + delta + len) % len; // loop within the series
-      goTo(info.list[ni]);
+      const i = allGidxs.indexOf(curGidx);
+      if (i < 0) return;
+      const len = allGidxs.length;
+      const ni = (i + delta + len) % len; // loop across ALL photos
+      goTo(allGidxs[ni]);
     }
 
     dialog.addEventListener('lb:open', (e) => {
