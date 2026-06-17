@@ -151,10 +151,29 @@ const seriesData = sorted.map((s) => ({
 
     dialog.addEventListener('click', (e) => {
       const thumb = e.target.closest('.lb-thumb');
-      if (thumb) { goTo(Number(thumb.dataset.gidx)); return; }
-      // Click the empty slide area or the dialog itself to close (not the image).
-      if (e.target === dialog || (e.target.classList && e.target.classList.contains('lb__slide'))) {
-        dialog.close();
+      if (thumb) { goTo(Number(thumb.dataset.gidx)); }
+      // Stage taps/swipes are handled by the pointer handler below; close via ✕ or Esc.
+    });
+
+    // Stage: tap left/right half = prev/next; swipe in any direction = prev/next.
+    const stageEl = dialog.querySelector('.lb__stage');
+    let pStartX = null, pStartY = null, pId = null;
+    stageEl?.addEventListener('pointerdown', (e) => {
+      pStartX = e.clientX; pStartY = e.clientY; pId = e.pointerId;
+    });
+    stageEl?.addEventListener('pointerup', (e) => {
+      if (pId !== e.pointerId || pStartX == null) return;
+      const dx = e.clientX - pStartX;
+      const dy = e.clientY - pStartY;
+      const ax = Math.abs(dx), ay = Math.abs(dy);
+      const TH = 40;
+      pStartX = null;
+      if (ax > TH || ay > TH) {
+        if (ax >= ay) { dx > 0 ? step(-1) : step(1); }   // right=prev, left=next
+        else { dy > 0 ? step(-1) : step(1); }            // down=prev, up=next
+      } else {
+        const r = stageEl.getBoundingClientRect();        // tap: left half prev, right half next
+        e.clientX < r.left + r.width / 2 ? step(-1) : step(1);
       }
     });
 
@@ -246,6 +265,7 @@ const seriesData = sorted.map((s) => ({
     overflow: hidden;
     min-width: 0;
     border-radius: 2px;
+    touch-action: none; /* let the pointer handler drive swipe/tap navigation */
   }
   .lb__slides {
     position: absolute;
@@ -301,6 +321,7 @@ const seriesData = sorted.map((s) => ({
     z-index: 20;
     display: flex;
     flex-direction: column;
+    padding-right: var(--space-2); /* keep the current thumb's right corner bracket visible */
   }
   .lb__group {
     display: flex;
