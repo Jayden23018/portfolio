@@ -178,9 +178,16 @@ const seriesData = sorted.map((s) => ({
     });
 
     // Trackpad / mouse wheel on the stage = prev/next (Mac two-finger swipe).
-    // step()'s isAnimating lock throttles the rapid wheel stream to one per curtain cycle.
+    // One gesture = one page: lock until the wheel stream goes silent (~220ms),
+    // so a single two-finger swipe doesn't skip ahead by 2+ pages.
+    let wheelLock = false;
+    let wheelTimer;
     stageEl?.addEventListener('wheel', (e) => {
       e.preventDefault();
+      clearTimeout(wheelTimer);
+      wheelTimer = setTimeout(() => { wheelLock = false; }, 220);
+      if (wheelLock || e.deltaY === 0) return;
+      wheelLock = true;
       if (e.deltaY > 0) step(1); else step(-1);
     }, { passive: false });
 
