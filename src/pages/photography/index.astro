@@ -43,7 +43,6 @@ for (const s of allSeries) {
 }
 
 const years = [...new Set(flat.map(p => p.year))].sort().reverse();
-const lbImages = flat.map(p => ({ src: p.src, alt: p.alt, caption: p.caption, span: p.span }));
 
 // Split into two masonry columns (even / odd index)
 const col0 = flat.filter((_, i) => i % 2 === 0);
@@ -160,7 +159,7 @@ const col1 = flat.filter((_, i) => i % 2 === 1);
     </div>
   </section>
 
-  <Lightbox images={lbImages} id="all" />
+  <Lightbox series={exploreSeries} id="all" />
 </Base>
 
 <script>
