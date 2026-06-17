@@ -51,6 +51,10 @@ const ogImageURL = new URL(ogImage, Astro.site).toString();
   <body>
     <Masthead />
 
+    <div class="read-progress" aria-hidden="true">
+      <div class="read-progress__bar"></div>
+    </div>
+
     <main>
       <slot />
     </main>
@@ -72,8 +76,42 @@ const ogImageURL = new URL(ogImage, Astro.site).toString();
         gsap.ticker.add((time) => { lenis.raf(time * 1000); });
         gsap.ticker.lagSmoothing(0);
       }
+
+      const readBar = document.querySelector('.read-progress__bar') as HTMLElement | null;
+      function updateReadProgress() {
+        const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = maxScroll > 0 ? (window.scrollY / maxScroll) * 100 : 0;
+        if (readBar) readBar.style.width = pct + '%';
+      }
+      window.addEventListener('scroll', updateReadProgress, { passive: true });
+      updateReadProgress();
     </script>
 
     <SpeedInsights />
   </body>
 </html>
+
+<style>
+  .read-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    z-index: 200;
+    pointer-events: none;
+  }
+  .read-progress__bar {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    transition: width 0.08s linear;
+  }
+  /* Explore mode uses full-screen pan — reading progress is irrelevant */
+  :global(html.is-explore) .read-progress {
+    visibility: hidden;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .read-progress__bar { transition: none; }
+  }
+</style>
