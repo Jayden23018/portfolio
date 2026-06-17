@@ -177,6 +177,13 @@ const seriesData = sorted.map((s) => ({
       }
     });
 
+    // Trackpad / mouse wheel on the stage = prev/next (Mac two-finger swipe).
+    // step()'s isAnimating lock throttles the rapid wheel stream to one per curtain cycle.
+    stageEl?.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      if (e.deltaY > 0) step(1); else step(-1);
+    }, { passive: false });
+
     dialog.addEventListener('keydown', (e) => {
       if (!dialog.open) return;
       if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
@@ -322,6 +329,10 @@ const seriesData = sorted.map((s) => ({
     display: flex;
     flex-direction: column;
     padding-right: var(--space-2); /* keep the current thumb's right corner bracket visible */
+    scrollbar-width: none; /* hide the scrollbar (still scrollable) */
+  }
+  .lb__filmstrip::-webkit-scrollbar {
+    display: none;
   }
   .lb__group {
     display: flex;
